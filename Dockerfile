@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:24-alpine
 LABEL org.opencontainers.image.authors="jecklgamis@gmail.com"
 
 RUN apk add --no-cache curl dumb-init
