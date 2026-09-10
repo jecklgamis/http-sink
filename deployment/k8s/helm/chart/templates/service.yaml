@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "http-sink.fullname" . }}
+  labels:
+    {{- include "http-sink.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 38080
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "http-sink.selectorLabels" . | nindent 4 }}

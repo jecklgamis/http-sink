@@ -1,0 +1,17 @@
+# Created by .ignore support plugin (hsz.mobi)
+
+node_modules/
+npm-debug.log
+
+# generated at build time
+server.key
+server.crt
+
+# helm package output
+deployment/k8s/helm/*.tgz
+
+.DS_Store
+
+# editor/IDE state
+.idea/
+.claude/

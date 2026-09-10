@@ -1,0 +1,163 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+table#blackhole-stats,
+table#blackhole-breakdown,
+table#blackhole-recent {
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table#blackhole-stats th,
+table#blackhole-stats td,
+table#blackhole-breakdown th,
+table#blackhole-breakdown td,
+table#blackhole-recent th,
+table#blackhole-recent td {
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.stats-updated {
+  color: #888;
+  font-size: 12px;
+}
+
+.section-info {
+  color: #666;
+  font-size: 12px;
+  max-width: 500px;
+  margin: 4px 0 0;
+}
+
+table#blackhole-recent pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 500px;
+}
+
+td.body-cell {
+  cursor: pointer;
+  font-family: monospace;
+  max-width: 500px;
+}
+
+td.body-cell:hover {
+  background: #f2f9ff;
+}
+
+#clear-recent,
+#freeze-recent {
+  margin-right: 8px;
+}
+
+table#blackhole-recent td.user-agent-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+table#blackhole-latency {
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table#blackhole-latency th,
+table#blackhole-latency td {
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+#latency-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+#latency-form input {
+  padding: 4px 8px;
+}
+
+table#blackhole-failure {
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table#blackhole-failure th,
+table#blackhole-failure td {
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+#failure-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+#failure-form input {
+  padding: 4px 8px;
+}
+
+#failure-path {
+  width: 260px;
+}
+
+#failure-rate,
+#failure-status {
+  width: 120px;
+}
+
+div#rps-sparkline-wrap {
+  width: 340px;
+  max-width: 100%;
+  margin-bottom: 10px;
+}
+
+div#rps-sparkline-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+div#rps-sparkline-yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #888;
+  text-align: right;
+  width: 28px;
+  padding: 2px 0;
+}
+
+svg#rps-sparkline {
+  flex: 1;
+  width: 100%;
+  height: 60px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+div#rps-sparkline-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #888;
+  margin-top: 2px;
+  margin-left: 34px;
+}
