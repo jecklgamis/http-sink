@@ -7,8 +7,9 @@ npm-debug.log
 server.key
 server.crt
 
-# helm package output
+# helm package/dry-run output
 deployment/k8s/helm/*.tgz
+deployment/k8s/helm/dry-run.txt
 
 .DS_Store
 
