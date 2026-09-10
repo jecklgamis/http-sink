@@ -37,8 +37,9 @@ app.use(statusCodeMetrics)
 const blackholeStats = require('./middleware/blackhole/stats');
 const toIpv4 = ip => ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, '');
 const excludedFromStats = ['/blackhole/stats', '/blackhole/recent', '/blackhole/config/latency', '/blackhole/config/failure'];
+const isBlackholeTraffic = path => path === '/blackhole' || path.startsWith('/blackhole/');
 app.use((req, res, next) => {
-    if (!excludedFromStats.includes(req.path)) {
+    if (isBlackholeTraffic(req.path) && !excludedFromStats.includes(req.path)) {
         const method = req.method;
         const path = req.path;
         const remoteAddress = toIpv4(req.ip);
