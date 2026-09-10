@@ -19,6 +19,9 @@ const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
+// behind nginx-ingress: trust X-Forwarded-For so req.ip is the real client, not the ingress pod
+app.set('trust proxy', true);
+
 app.use(logger('combined'));
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
