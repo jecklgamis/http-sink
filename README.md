@@ -20,6 +20,14 @@ What's In The Box?
 
 Have fun and hope you find this useful!
 
+## Practical Uses
+
+* **Debugging what a client actually sends** — point any HTTP client (webhook sender, API integration, mobile app, curl script) at `/blackhole/...` and see the exact method, headers, body, and query args it produced, live, in the Packet Inspection panel — no need to stand up a real backend or add logging to debug "why isn't my webhook payload what I expect."
+* **Testing client resilience without touching real infrastructure** — the latency/failure injection lets you simulate a slow or flaky downstream service (500s, timeouts, jitter) to verify your client's retry/backoff/timeout logic actually works, without needing chaos-engineering tooling like Toxiproxy or modifying a real service.
+* **Load-testing target** — since it's a lightweight sink that just echoes and records stats, it's a safe place to point Gatling/load-gen scripts at and watch RPS/traffic patterns live instead of guessing from logs.
+* **Multi-user/multi-scenario safety** — project-token namespacing means multiple people or test scenarios can share one deployed instance without one person's chaos config breaking another's traffic.
+* **Zero-setup webhook/callback receiver** — anything that needs to POST somewhere and you just want to confirm it fired and see the payload (third-party webhooks, CI notifications, IoT devices) can point at it with no auth, no schema, no setup.
+
 ## Requirements
 
 * [NodeJs](https://nodejs.org/en/download/package-manager/)
