@@ -244,8 +244,7 @@ table#blackhole-failure td {
 }
 
 div#rps-sparkline-wrap {
-  width: 50%;
-  max-width: 100%;
+  width: 100%;
   margin-bottom: 10px;
 }
 
