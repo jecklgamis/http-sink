@@ -154,7 +154,7 @@
 
     function renderRpsSparkline(rpsHistory) {
         var width = 300;
-        var height = 60;
+        var height = 100;
         var max = Math.max(RPS_SPARKLINE_MIN_SCALE, Math.max.apply(null, rpsHistory));
         var n = rpsHistory.length;
         renderRpsGrid(width, height, n);
@@ -189,13 +189,41 @@
         });
     }
 
+    function renderProjectsList(projects) {
+        var tbody = document.getElementById('projects-body');
+        tbody.innerHTML = '';
+        if (projects.length === 0) {
+            var emptyRow = document.createElement('tr');
+            var emptyCell = document.createElement('td');
+            emptyCell.colSpan = 2;
+            emptyCell.textContent = 'no projects yet';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+            return;
+        }
+        projects.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).forEach(function (p) {
+            var tr = document.createElement('tr');
+            [p.name, new Date(p.createdAt).toLocaleString()].forEach(function (value) {
+                var td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updateProjectsList() {
+        fetch('/blackhole/projects')
+            .then(function (res) { return res.json(); })
+            .then(renderProjectsList)
+            .catch(function () {});
+    }
+
     function update() {
         fetch('/blackhole/stats')
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var w = data.windows['1s'];
-                document.getElementById('rps-1s').textContent = w.rps;
-                document.getElementById('total-1s').textContent = w.total;
                 renderRpsSparkline(data.rpsHistory);
                 renderBreakdown(w.byPathAndMethod, w.rpsByPathAndMethod);
                 updateKnownPaths(w.byPath);
@@ -208,6 +236,7 @@
             .catch(function () {
                 document.getElementById('stats-updated').textContent = 'stats unavailable';
             });
+        updateProjectsList();
     }
 
     document.getElementById('clear-recent').addEventListener('click', function () {
@@ -292,9 +321,62 @@
                 renderProjectUI();
                 document.getElementById('project-token').value = result.body.token;
                 document.getElementById('project-token-reveal').hidden = false;
+                updateProjectsList();
             } else {
                 errorEl.textContent = result.body.error || 'request failed';
             }
+        });
+    });
+
+    document.getElementById('project-restore-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var errorEl = document.getElementById('project-restore-form-error');
+        errorEl.textContent = '';
+        var name = document.getElementById('project-restore-name').value.trim();
+        var token = document.getElementById('project-restore-token').value.trim();
+        fetch('/blackhole/projects')
+            .then(function (res) { return res.json(); })
+            .then(function (projectList) {
+                if (!projectList.some(function (p) { return p.name === name; })) {
+                    errorEl.textContent = "project '" + name + "' does not exist on this server";
+                    return;
+                }
+                setProject({name: name, token: token});
+                document.getElementById('project-restore-form').reset();
+                renderProjectUI();
+            })
+            .catch(function () {
+                errorEl.textContent = 'could not reach the server to verify the project name';
+            });
+    });
+
+    document.getElementById('project-delete-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var errorEl = document.getElementById('project-delete-form-error');
+        errorEl.textContent = '';
+        var name = document.getElementById('project-delete-name').value.trim();
+        var token = document.getElementById('project-delete-token').value.trim();
+        fetch('/blackhole/projects/' + encodeURIComponent(name), {
+            method: 'DELETE',
+            headers: {'X-Blackhole-Token': token},
+        }).then(function (res) {
+            if (res.ok) {
+                document.getElementById('project-delete-form').reset();
+                var active = getProject();
+                if (active && active.name === name) {
+                    forgetProjectLocally();
+                } else {
+                    updateProjectsList();
+                }
+                return;
+            }
+            return res.json().then(function (body) {
+                errorEl.textContent = body.error || 'request failed';
+            }).catch(function () {
+                errorEl.textContent = 'request failed';
+            });
+        }).catch(function () {
+            errorEl.textContent = 'could not reach the server';
         });
     });
 
@@ -303,6 +385,7 @@
         document.getElementById('project-token-reveal').hidden = true;
         document.getElementById('project-token').value = '';
         renderProjectUI();
+        updateProjectsList();
     }
 
     document.getElementById('project-forget').addEventListener('click', function () {

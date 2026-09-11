@@ -3,19 +3,92 @@ body {
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
 }
 
+@media (max-width: 600px) {
+  body {
+    padding-inline: 16px;
+    padding-block: 24px;
+  }
+}
+
+p {
+  margin: 10px 0;
+  line-height: 1.5;
+}
+
+.tagline {
+  font-style: italic;
+  color: #666;
+  margin-top: 0;
+}
+
+pre {
+  background: #f2f2f2;
+  color: #333;
+  border: 1px solid #ddd;
+  padding: 12px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  max-width: 100%;
+}
+
+
+input,
+select,
+button {
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 a {
   color: #00B7FF;
 }
 
-table#blackhole-stats,
+div#live-stats-section,
+div#packet-inspection-section,
+div#project-section,
+div#latency-section,
+div#failure-section {
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  border: 1px solid transparent;
+  overflow-x: auto;
+}
+
+div#live-stats-section {
+  background: #eaf3fb;
+  border-color: #d3e6f6;
+}
+
+div#packet-inspection-section {
+  background: #f2f0fb;
+  border-color: #dfdaf5;
+}
+
+div#project-section {
+  background: #eef6f4;
+  border-color: #d6ebe6;
+}
+
+div#latency-section {
+  background: #fdf3ea;
+  border-color: #f5e3cd;
+}
+
+div#failure-section {
+  background: #fbeef1;
+  border-color: #f3d9e0;
+}
+
 table#blackhole-breakdown,
 table#blackhole-recent {
   border-collapse: collapse;
   margin-top: 10px;
 }
 
-table#blackhole-stats th,
-table#blackhole-stats td,
 table#blackhole-breakdown th,
 table#blackhole-breakdown td,
 table#blackhole-recent th,
@@ -33,15 +106,26 @@ table#blackhole-recent td {
 .section-info {
   color: #666;
   font-size: 12px;
-  max-width: 500px;
-  margin: 4px 0 0;
+  max-width: none;
+  margin: 4px 0 10px;
 }
 
 .form-error {
   display: block;
   color: #b2182b;
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+#project-form,
+#project-restore-form,
+#project-delete-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
 }
 
 div#project-active {
@@ -64,14 +148,21 @@ div#project-token-reveal {
 
 input#project-token {
   width: 320px;
+  max-width: 100%;
   font-family: monospace;
 }
 
 table#blackhole-recent pre {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
   max-width: 500px;
+  font-size: inherit;
+  overflow-x: visible;
 }
 
 td.body-cell {
@@ -96,13 +187,16 @@ table#blackhole-recent td.user-agent-cell {
   white-space: nowrap;
 }
 
-table#blackhole-latency {
+table#blackhole-latency,
+table#blackhole-projects {
   border-collapse: collapse;
   margin-top: 10px;
 }
 
 table#blackhole-latency th,
-table#blackhole-latency td {
+table#blackhole-latency td,
+table#blackhole-projects th,
+table#blackhole-projects td {
   border: 1px solid #ccc;
   padding: 6px 12px;
   text-align: left;
@@ -110,13 +204,10 @@ table#blackhole-latency td {
 
 #latency-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin-top: 10px;
-}
-
-#latency-form input {
-  padding: 4px 8px;
 }
 
 table#blackhole-failure {
@@ -133,26 +224,27 @@ table#blackhole-failure td {
 
 #failure-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin-top: 10px;
-}
-
-#failure-form input {
-  padding: 4px 8px;
 }
 
 #failure-path {
   width: 260px;
 }
 
-#failure-rate,
+#failure-rate {
+  width: 80px;
+}
+
 #failure-status {
-  width: 120px;
+  width: 220px;
+  max-width: 100%;
 }
 
 div#rps-sparkline-wrap {
-  width: 340px;
+  width: 50%;
   max-width: 100%;
   margin-bottom: 10px;
 }
@@ -177,7 +269,7 @@ div#rps-sparkline-yaxis {
 svg#rps-sparkline {
   flex: 1;
   width: 100%;
-  height: 60px;
+  height: 100px;
   border: 1px solid #ccc;
   border-radius: 4px;
   background: #fafafa;

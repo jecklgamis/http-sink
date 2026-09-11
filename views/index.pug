@@ -2,131 +2,162 @@ extends layout
 
 block content
   h1= title
+  p.tagline Relax, sink it.
   p= message
 
-  h2 Live traffic stats
+  div#live-stats-section
+    h2 Live Traffic Stats
 
-  div#rps-sparkline-wrap
-    div#rps-sparkline-row
-      div#rps-sparkline-yaxis
-        span#rps-yaxis-max
-        span#rps-yaxis-75
-        span#rps-yaxis-50
-        span#rps-yaxis-25
-        span 0
-      svg#rps-sparkline(viewBox='0 0 300 60' preserveAspectRatio='none')
-        g#rps-sparkline-grid
-        polyline#rps-sparkline-line(points='' fill='none' stroke='#b2182b' stroke-width='2' vector-effect='non-scaling-stroke')
-    div#rps-sparkline-axis
-      span -30s
-      span -15s
-      span now
+    div#rps-sparkline-wrap
+      div#rps-sparkline-row
+        div#rps-sparkline-yaxis
+          span#rps-yaxis-max
+          span#rps-yaxis-75
+          span#rps-yaxis-50
+          span#rps-yaxis-25
+          span 0
+        svg#rps-sparkline(viewBox='0 0 300 100' preserveAspectRatio='none')
+          g#rps-sparkline-grid
+          polyline#rps-sparkline-line(points='' fill='none' stroke='#b2182b' stroke-width='2' vector-effect='non-scaling-stroke')
+      div#rps-sparkline-axis
+        span -30s
+        span -15s
+        span now
 
-  table#blackhole-stats
-    thead
-      tr
-        th Window
-        th RPS
-        th Total
-    tbody
-      tr
-        td 1s
-        td#rps-1s --
-        td#total-1s --
+    table#blackhole-breakdown
+      thead
+        tr
+          th Path
+          th Method
+          th RPS
+          th Count
+      tbody#breakdown-body
 
-  h3 RPS by path &amp; method (1s window)
-  table#blackhole-breakdown
-    thead
-      tr
-        th Path
-        th Method
-        th RPS
-        th Count
-    tbody#breakdown-body
+  div#packet-inspection-section
+    h3 Packet Inspection
+    button#clear-recent Clear
+    button#freeze-recent Freeze
+    table#blackhole-recent
+      thead
+        tr
+          th Time
+          th Method
+          th Path
+          th Status
+          th Response time (ms)
+          th Remote address
+          th User agent
+          th Headers
+          th Body
+      tbody#recent-body
+    p.stats-updated#stats-updated updating...
 
-  h3 Packet Inspection
-  button#clear-recent Clear
-  button#freeze-recent Freeze
-  table#blackhole-recent
-    thead
-      tr
-        th Time
-        th Method
-        th Path
-        th Status
-        th Response time (ms)
-        th Remote address
-        th User agent
-        th Headers
-        th Body
-    tbody#recent-body
-  p.stats-updated#stats-updated updating...
+  div#project-section
+    h3 Project
 
-  h3 Project
-  p.section-info Claim a project name to get an API token. Latency/failure configs must live under /blackhole/&lt;project&gt;/... and require this token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.
-  form#project-form
-    input#project-name(type='text' placeholder='my-project' pattern='[a-zA-Z0-9_-]{1,64}' required)
-    button(type='submit') Create project
-  span.form-error#project-form-error
-  div#project-active(hidden)
-    p
-      | Active project:
-      strong#project-active-name
-      |  &mdash; use path prefix
-      code#project-path-prefix
-    button#project-forget Forget (locally)
-  div#project-token-reveal(hidden)
-    p.section-info Save this token now &mdash; it will not be shown again.
-    input#project-token(type='text' readonly)
-    button#project-token-copy Copy
+    div#project-active(hidden)
+      p
+        | Active project:
+        strong#project-active-name
+        |  &mdash; use path prefix
+        code#project-path-prefix
+      button#project-forget Delete project
 
-  h3 Latency simulation
-  p.section-info Configure a path under your project and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Requires your project token.
-  form#latency-form
-    input#latency-path(type='text' placeholder='/blackhole/my-project/foo' required)
-    input#latency-jitter(type='number' placeholder='jitter ms' min='0' required)
-    button(type='submit') Add
-  span.form-error#latency-form-error
-  table#blackhole-latency
-    thead
-      tr
-        th Path
-        th Jitter (ms)
-        th
-    tbody#latency-body
+    p.section-info Latency/failure configs must live under /blackhole/&lt;project&gt;/... and require that project's token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.
 
-  h3 Failure injection
-  p.section-info Configure a path under your project, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Requires your project token.
-  form#failure-form
-    input#failure-path(type='text' placeholder='/blackhole/my-project/foo' list='failure-path-list' required)
-    datalist#failure-path-list
-    select#failure-rate(required)
-      option(value='0.05') 5%
-      option(value='0.1') 10%
-      option(value='0.25') 25%
-      option(value='0.5' selected) 50%
-      option(value='0.75') 75%
-      option(value='1') 100%
-    select#failure-status(required)
-      option(value='400') 400 Bad Request
-      option(value='401') 401 Unauthorized
-      option(value='403') 403 Forbidden
-      option(value='404') 404 Not Found
-      option(value='408') 408 Request Timeout
-      option(value='429') 429 Too Many Requests
-      option(value='500' selected) 500 Internal Server Error
-      option(value='502') 502 Bad Gateway
-      option(value='503') 503 Service Unavailable
-      option(value='504') 504 Gateway Timeout
-    button(type='submit') Add
-  span.form-error#failure-form-error
-  table#blackhole-failure
-    thead
-      tr
-        th Path
-        th Rate
-        th Status code
-        th
-    tbody#failure-body
+    h4 Existing projects
+    table#blackhole-projects
+      thead
+        tr
+          th Name
+          th Created
+      tbody#projects-body
+
+    h4 Create
+    p.section-info Claim a project name to get an API token, shown once.
+    form#project-form
+      input#project-name(type='text' placeholder='my-project' pattern='[a-zA-Z0-9_-]{1,64}' required)
+      button(type='submit') Create project
+    span.form-error#project-form-error
+
+    h4 Set
+    p.section-info Already have a project and token from before (different browser, cleared storage)? Restore it here instead of creating a new one.
+    form#project-restore-form
+      input#project-restore-name(type='text' placeholder='my-project' required)
+      input#project-restore-token(type='text' placeholder='token' required)
+      button(type='submit') Set
+    span.form-error#project-restore-form-error
+
+    h4 Delete
+    p.section-info Delete a project by name and token &mdash; frees the name and removes any latency/failure configs under it. Works even if it isn't the active project in this browser.
+    form#project-delete-form
+      input#project-delete-name(type='text' placeholder='my-project' required)
+      input#project-delete-token(type='text' placeholder='token' required)
+      button(type='submit') Delete project
+    span.form-error#project-delete-form-error
+
+    div#project-token-reveal(hidden)
+      p.section-info Save this token now &mdash; it will not be shown again.
+      input#project-token(type='text' readonly)
+      button#project-token-copy Copy
+
+  div#latency-section
+    h3 Latency Simulation
+    p.section-info Configure a path under your project and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Requires your project token.
+    form#latency-form
+      input#latency-path(type='text' placeholder='/blackhole/my-project/foo' required)
+      input#latency-jitter(type='number' placeholder='jitter ms' min='0' required)
+      button(type='submit') Add
+    span.form-error#latency-form-error
+    table#blackhole-latency
+      thead
+        tr
+          th Path
+          th Jitter (ms)
+          th
+      tbody#latency-body
+
+  div#failure-section
+    h3 Failure Injection
+    p.section-info Configure a path under your project, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Requires your project token.
+    form#failure-form
+      input#failure-path(type='text' placeholder='/blackhole/my-project/foo' list='failure-path-list' required)
+      datalist#failure-path-list
+      select#failure-rate(required)
+        option(value='0.05') 5%
+        option(value='0.1') 10%
+        option(value='0.25') 25%
+        option(value='0.5' selected) 50%
+        option(value='0.75') 75%
+        option(value='1') 100%
+      select#failure-status(required)
+        option(value='400') 400 Bad Request
+        option(value='401') 401 Unauthorized
+        option(value='403') 403 Forbidden
+        option(value='404') 404 Not Found
+        option(value='408') 408 Request Timeout
+        option(value='429') 429 Too Many Requests
+        option(value='500' selected) 500 Internal Server Error
+        option(value='502') 502 Bad Gateway
+        option(value='503') 503 Service Unavailable
+        option(value='504') 504 Gateway Timeout
+      button(type='submit') Add
+    span.form-error#failure-form-error
+    table#blackhole-failure
+      thead
+        tr
+          th Path
+          th Rate
+          th Status code
+          th
+      tbody#failure-body
+
+  div#about-section
+    h2 Project
+    p: a(href='https://github.com/jecklgamis/http-sink' target='_blank' rel='noopener') View on GitHub
+
+    h4 Run locally
+    pre: code.
+      docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main
 
   script(src='/javascripts/blackhole-stats.js')
