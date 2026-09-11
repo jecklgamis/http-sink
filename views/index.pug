@@ -68,6 +68,7 @@ block content
     input#latency-path(type='text' placeholder='/blackhole/foo' required)
     input#latency-jitter(type='number' placeholder='jitter ms' min='0' required)
     button(type='submit') Add
+  span.form-error#latency-form-error
   table#blackhole-latency
     thead
       tr
@@ -100,6 +101,7 @@ block content
       option(value='503') 503 Service Unavailable
       option(value='504') 504 Gateway Timeout
     button(type='submit') Add
+  span.form-error#failure-form-error
   table#blackhole-failure
     thead
       tr

@@ -37,6 +37,13 @@ table#blackhole-recent td {
   margin: 4px 0 0;
 }
 
+.form-error {
+  display: block;
+  color: #b2182b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 table#blackhole-recent pre {
   margin: 0;
   white-space: pre-wrap;

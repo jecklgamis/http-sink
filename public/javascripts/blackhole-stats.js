@@ -262,6 +262,8 @@
 
         document.getElementById(opts.formId).addEventListener('submit', function (e) {
             e.preventDefault();
+            var errorEl = document.getElementById(opts.errorId);
+            if (errorEl) errorEl.textContent = '';
             var payload = {};
             opts.fields.forEach(function (f) {
                 var raw = document.getElementById(f.id).value;
@@ -275,6 +277,12 @@
                 if (res.ok) {
                     document.getElementById(opts.formId).reset();
                     refresh();
+                } else {
+                    res.json().then(function (body) {
+                        if (errorEl) errorEl.textContent = body.error || 'request failed';
+                    }).catch(function () {
+                        if (errorEl) errorEl.textContent = 'request failed';
+                    });
                 }
             });
         });
@@ -286,6 +294,7 @@
         endpoint: '/blackhole/config/latency',
         formId: 'latency-form',
         tbodyId: 'latency-body',
+        errorId: 'latency-form-error',
         emptyText: 'no latency configs',
         fields: [
             {id: 'latency-path', key: 'path'},
@@ -297,6 +306,7 @@
         endpoint: '/blackhole/config/failure',
         formId: 'failure-form',
         tbodyId: 'failure-body',
+        errorId: 'failure-form-error',
         emptyText: 'no failure configs',
         fields: [
             {id: 'failure-path', key: 'path'},

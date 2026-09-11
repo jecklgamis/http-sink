@@ -13,14 +13,22 @@ router.delete('/recent', function (req, res) {
     res.sendStatus(204);
 });
 
+function validateConfigPath(path) {
+    if (!path || typeof path !== 'string' || !path.startsWith('/blackhole/')) {
+        return 'path must be a subpath under /blackhole/, e.g. /blackhole/my-scenario';
+    }
+    return null;
+}
+
 router.get('/config/latency', function (req, res) {
     res.json(latency.list());
 });
 
 router.post('/config/latency', function (req, res) {
     const {path, jitterMs} = req.body;
-    if (!path || typeof path !== 'string' || !path.startsWith('/')) {
-        return res.status(400).json({error: 'path must be a string starting with /'});
+    const pathError = validateConfigPath(path);
+    if (pathError) {
+        return res.status(400).json({error: pathError});
     }
     const jitter = Number(jitterMs);
     if (!Number.isFinite(jitter) || jitter < 0) {
@@ -45,8 +53,9 @@ router.get('/config/failure', function (req, res) {
 
 router.post('/config/failure', function (req, res) {
     const {path, rate, statusCode} = req.body;
-    if (!path || typeof path !== 'string' || !path.startsWith('/')) {
-        return res.status(400).json({error: 'path must be a string starting with /'});
+    const pathError = validateConfigPath(path);
+    if (pathError) {
+        return res.status(400).json({error: pathError});
     }
     const rateNum = Number(rate);
     if (!Number.isFinite(rateNum) || rateNum < 0 || rateNum > 1) {
