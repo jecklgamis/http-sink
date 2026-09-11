@@ -222,6 +222,99 @@
         freezeButton.textContent = recentFrozen ? 'Unfreeze' : 'Freeze';
     });
 
+    var PROJECT_STORAGE_KEY = 'blackholeProject';
+
+    function getProject() {
+        try {
+            var raw = localStorage.getItem(PROJECT_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function setProject(project) {
+        try {
+            localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+        } catch (e) {
+            // ignore (private browsing, storage disabled, etc.)
+        }
+    }
+
+    function clearProject() {
+        try {
+            localStorage.removeItem(PROJECT_STORAGE_KEY);
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function getProjectToken() {
+        var project = getProject();
+        return project ? project.token : null;
+    }
+
+    function renderProjectUI() {
+        var project = getProject();
+        var activeEl = document.getElementById('project-active');
+        if (!project) {
+            activeEl.hidden = true;
+            return;
+        }
+        document.getElementById('project-active-name').textContent = project.name;
+        var prefix = '/blackhole/' + project.name + '/';
+        document.getElementById('project-path-prefix').textContent = prefix;
+        activeEl.hidden = false;
+
+        var latencyPathInput = document.getElementById('latency-path');
+        var failurePathInput = document.getElementById('failure-path');
+        if (!latencyPathInput.value) latencyPathInput.value = prefix;
+        if (!failurePathInput.value) failurePathInput.value = prefix;
+    }
+
+    document.getElementById('project-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var errorEl = document.getElementById('project-form-error');
+        errorEl.textContent = '';
+        var name = document.getElementById('project-name').value.trim();
+        fetch('/blackhole/projects', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name}),
+        }).then(function (res) {
+            return res.json().then(function (body) {
+                return {ok: res.ok, body: body};
+            });
+        }).then(function (result) {
+            if (result.ok) {
+                setProject({name: result.body.name, token: result.body.token});
+                document.getElementById('project-form').reset();
+                renderProjectUI();
+                document.getElementById('project-token').value = result.body.token;
+                document.getElementById('project-token-reveal').hidden = false;
+            } else {
+                errorEl.textContent = result.body.error || 'request failed';
+            }
+        });
+    });
+
+    document.getElementById('project-forget').addEventListener('click', function () {
+        clearProject();
+        document.getElementById('project-token-reveal').hidden = true;
+        document.getElementById('project-token').value = '';
+        renderProjectUI();
+    });
+
+    document.getElementById('project-token-copy').addEventListener('click', function () {
+        var tokenInput = document.getElementById('project-token');
+        tokenInput.select();
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(tokenInput.value).catch(function () {});
+        }
+    });
+
+    renderProjectUI();
+
     function wireConfigSection(opts) {
         function render(configs) {
             var tbody = document.getElementById(opts.tbodyId);
@@ -246,7 +339,11 @@
                 var removeButton = document.createElement('button');
                 removeButton.textContent = 'Remove';
                 removeButton.addEventListener('click', function () {
-                    fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE'}).then(refresh);
+                    var headers = {};
+                    var token = getProjectToken();
+                    if (token) headers['X-Blackhole-Token'] = token;
+                    fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE', headers: headers})
+                        .then(refresh);
                 });
                 actionTd.appendChild(removeButton);
                 tr.appendChild(actionTd);
@@ -269,9 +366,12 @@
                 var raw = document.getElementById(f.id).value;
                 payload[f.key] = f.parse ? f.parse(raw) : raw.trim();
             });
+            var headers = {'Content-Type': 'application/json'};
+            var token = getProjectToken();
+            if (token) headers['X-Blackhole-Token'] = token;
             fetch(opts.endpoint, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: headers,
                 body: JSON.stringify(payload),
             }).then(function (res) {
                 if (res.ok) {

@@ -62,10 +62,28 @@ block content
     tbody#recent-body
   p.stats-updated#stats-updated updating...
 
+  h3 Project
+  p.section-info Claim a project name to get an API token. Latency/failure configs must live under /blackhole/&lt;project&gt;/... and require this token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.
+  form#project-form
+    input#project-name(type='text' placeholder='my-project' pattern='[a-zA-Z0-9_-]{1,64}' required)
+    button(type='submit') Create project
+  span.form-error#project-form-error
+  div#project-active(hidden)
+    p
+      | Active project:
+      strong#project-active-name
+      |  &mdash; use path prefix
+      code#project-path-prefix
+    button#project-forget Forget (locally)
+  div#project-token-reveal(hidden)
+    p.section-info Save this token now &mdash; it will not be shown again.
+    input#project-token(type='text' readonly)
+    button#project-token-copy Copy
+
   h3 Latency simulation
-  p.section-info Configure a path and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding.
+  p.section-info Configure a path under your project and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Requires your project token.
   form#latency-form
-    input#latency-path(type='text' placeholder='/blackhole/foo' required)
+    input#latency-path(type='text' placeholder='/blackhole/my-project/foo' required)
     input#latency-jitter(type='number' placeholder='jitter ms' min='0' required)
     button(type='submit') Add
   span.form-error#latency-form-error
@@ -78,9 +96,9 @@ block content
     tbody#latency-body
 
   h3 Failure injection
-  p.section-info Configure a path, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally.
+  p.section-info Configure a path under your project, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Requires your project token.
   form#failure-form
-    input#failure-path(type='text' placeholder='/blackhole/foo' list='failure-path-list' required)
+    input#failure-path(type='text' placeholder='/blackhole/my-project/foo' list='failure-path-list' required)
     datalist#failure-path-list
     select#failure-rate(required)
       option(value='0.05') 5%
