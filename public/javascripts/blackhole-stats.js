@@ -298,11 +298,37 @@
         });
     });
 
-    document.getElementById('project-forget').addEventListener('click', function () {
+    function forgetProjectLocally() {
         clearProject();
         document.getElementById('project-token-reveal').hidden = true;
         document.getElementById('project-token').value = '';
         renderProjectUI();
+    }
+
+    document.getElementById('project-forget').addEventListener('click', function () {
+        var project = getProject();
+        var errorEl = document.getElementById('project-form-error');
+        if (!project) {
+            forgetProjectLocally();
+            return;
+        }
+        fetch('/blackhole/projects/' + encodeURIComponent(project.name), {
+            method: 'DELETE',
+            headers: {'X-Blackhole-Token': project.token},
+        }).then(function (res) {
+            if (res.ok || res.status === 404) {
+                if (errorEl) errorEl.textContent = '';
+                return;
+            }
+            return res.json().then(function (body) {
+                if (errorEl) {
+                    errorEl.textContent = 'Forgot locally, but could not release the name on the server: '
+                        + (body.error || res.status);
+                }
+            });
+        }).catch(function () {
+            if (errorEl) errorEl.textContent = 'Forgot locally, but could not reach the server to release the name.';
+        }).then(forgetProjectLocally);
     });
 
     document.getElementById('project-token-copy').addEventListener('click', function () {

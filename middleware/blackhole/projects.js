@@ -23,4 +23,8 @@ function list() {
     return Object.keys(projects).map(name => ({name, createdAt: projects[name].createdAt}));
 }
 
-module.exports = {create, exists, verify, list};
+function remove(name) {
+    delete projects[name];
+}
+
+module.exports = {create, exists, verify, list, remove};

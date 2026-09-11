@@ -32,6 +32,34 @@ router.get('/projects', function (req, res) {
     res.json(projects.list());
 });
 
+function authorizeProjectToken(req, projectName) {
+    if (!projects.exists(projectName)) {
+        return {
+            status: 404,
+            error: `project '${projectName}' does not exist -- create it first via POST /blackhole/projects`,
+        };
+    }
+    const token = req.get('X-Blackhole-Token');
+    if (!token || !projects.verify(projectName, token)) {
+        return {status: 403, error: `invalid or missing token for project '${projectName}'`};
+    }
+    return null;
+}
+
+router.delete('/projects/:name', function (req, res) {
+    const name = req.params.name;
+    const authError = authorizeProjectToken(req, name);
+    if (authError) {
+        return res.status(authError.status).json({error: authError.error});
+    }
+    const prefix = `/blackhole/${name}`;
+    const underProject = p => p === prefix || p.startsWith(prefix + '/');
+    latency.list().filter(c => underProject(c.path)).forEach(c => latency.remove(c.path));
+    failure.list().filter(c => underProject(c.path)).forEach(c => failure.remove(c.path));
+    projects.remove(name);
+    res.sendStatus(204);
+});
+
 function parseConfigPath(path) {
     if (!path || typeof path !== 'string' || !path.startsWith('/blackhole/')) {
         return {error: 'path must be a subpath under /blackhole/<project>/, e.g. /blackhole/my-project/my-scenario'};
@@ -48,17 +76,7 @@ function authorizeConfigPath(req, path) {
     if (parsed.error) {
         return {status: 400, error: parsed.error};
     }
-    if (!projects.exists(parsed.projectName)) {
-        return {
-            status: 404,
-            error: `project '${parsed.projectName}' does not exist -- create it first via POST /blackhole/projects`,
-        };
-    }
-    const token = req.get('X-Blackhole-Token');
-    if (!token || !projects.verify(parsed.projectName, token)) {
-        return {status: 403, error: `invalid or missing token for project '${parsed.projectName}'`};
-    }
-    return null;
+    return authorizeProjectToken(req, parsed.projectName);
 }
 
 router.get('/config/latency', function (req, res) {
