@@ -36,7 +36,7 @@ function authorizeProjectToken(req, projectName) {
     if (!projects.exists(projectName)) {
         return {
             status: 404,
-            error: `project '${projectName}' does not exist -- create it first via POST /blackhole/projects`,
+            error: `project '${projectName}' does not exist -- create it first via POST /sink/projects`,
         };
     }
     const token = req.get('X-Blackhole-Token');
@@ -52,7 +52,7 @@ router.delete('/projects/:name', function (req, res) {
     if (authError) {
         return res.status(authError.status).json({error: authError.error});
     }
-    const prefix = `/blackhole/${name}`;
+    const prefix = `/sink/${name}`;
     const underProject = p => p === prefix || p.startsWith(prefix + '/');
     latency.list().filter(c => underProject(c.path)).forEach(c => latency.remove(c.path));
     failure.list().filter(c => underProject(c.path)).forEach(c => failure.remove(c.path));
@@ -61,12 +61,12 @@ router.delete('/projects/:name', function (req, res) {
 });
 
 function parseConfigPath(path) {
-    if (!path || typeof path !== 'string' || !path.startsWith('/blackhole/')) {
-        return {error: 'path must be a subpath under /blackhole/<project>/, e.g. /blackhole/my-project/my-scenario'};
+    if (!path || typeof path !== 'string' || !path.startsWith('/sink/')) {
+        return {error: 'path must be a subpath under /sink/<project>/, e.g. /sink/my-project/my-scenario'};
     }
-    const projectName = path.slice('/blackhole/'.length).split('/')[0];
+    const projectName = path.slice('/sink/'.length).split('/')[0];
     if (!projectName) {
-        return {error: 'path must be a subpath under /blackhole/<project>/, e.g. /blackhole/my-project/my-scenario'};
+        return {error: 'path must be a subpath under /sink/<project>/, e.g. /sink/my-project/my-scenario'};
     }
     return {projectName};
 }

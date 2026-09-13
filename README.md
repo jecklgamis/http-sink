@@ -2,16 +2,16 @@
 
 [![Build](https://github.com/jecklgamis/http-sink/actions/workflows/build.yaml/badge.svg)](https://github.com/jecklgamis/http-sink/actions/workflows/build.yaml)
 
-A request sink for testing HTTP clients: `/blackhole` accepts any method or subpath, echoes back what it received, and lets you simulate latency and failures per path while watching live traffic stats on a built-in dashboard.
+A request sink for testing HTTP clients: `/sink` accepts any method or subpath, echoes back what it received, and lets you simulate latency and failures per path while watching live traffic stats on a built-in dashboard.
 
 Docker:  `docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main`
 
 What's In The Box?
 
-* `GET|POST|PUT|...  /blackhole` and `/blackhole/*` — echoes method, path, headers, body, query args, and origin IP as JSON (httpbin-style)
-* Live dashboard at `/` — RPS sparkline, RPS by path & method, last-10-requests inspector (freeze/clear, click-to-expand headers/body), all polling `/blackhole/stats`
-* Per-path **latency simulation** (`/blackhole/config/latency`) — add a random 0..N ms delay before responding
-* Per-path **failure injection** (`/blackhole/config/failure`) — return a configured status code for a configured fraction of requests
+* `GET|POST|PUT|...  /sink` and `/sink/*` — echoes method, path, headers, body, query args, and origin IP as JSON (httpbin-style)
+* Live dashboard at `/` — RPS sparkline, RPS by path & method, last-10-requests inspector (freeze/clear, click-to-expand headers/body), all polling `/sink/stats`
+* Per-path **latency simulation** (`/sink/config/latency`) — add a random 0..N ms delay before responding
+* Per-path **failure injection** (`/sink/config/failure`) — return a configured status code for a configured fraction of requests
 * [ExpressJS](https://expressjs.com/) app, Alpine [Docker](https://docker.io) image, HTTP and HTTPS listeners (self-signed certs)
 * /build-info endpoint (returns Git branch, version, and build time info)
 * /probe/ready, /probe/live endpoints for Kubernetes deployment
@@ -22,7 +22,7 @@ Have fun and hope you find this useful!
 
 ## Practical Uses
 
-* **Debugging what a client actually sends** — point any HTTP client (webhook sender, API integration, mobile app, curl script) at `/blackhole/...` and see the exact method, headers, body, and query args it produced, live, in the Packet Inspection panel — no need to stand up a real backend or add logging to debug "why isn't my webhook payload what I expect."
+* **Debugging what a client actually sends** — point any HTTP client (webhook sender, API integration, mobile app, curl script) at `/sink/...` and see the exact method, headers, body, and query args it produced, live, in the Packet Inspection panel — no need to stand up a real backend or add logging to debug "why isn't my webhook payload what I expect."
 * **Testing client resilience without touching real infrastructure** — the latency/failure injection lets you simulate a slow or flaky downstream service (500s, timeouts, jitter) to verify your client's retry/backoff/timeout logic actually works, without needing chaos-engineering tooling like Toxiproxy or modifying a real service.
 * **Load-testing target** — since it's a lightweight sink that just echoes and records stats, it's a safe place to point Gatling/load-gen scripts at and watch RPS/traffic patterns live instead of guessing from logs.
 * **Multi-user/multi-scenario safety** — project-token namespacing means multiple people or test scenarios can share one deployed instance without one person's chaos config breaking another's traffic.

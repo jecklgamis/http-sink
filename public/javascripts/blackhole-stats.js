@@ -213,14 +213,14 @@
     }
 
     function updateProjectsList() {
-        fetch('/blackhole/projects')
+        fetch('/sink/projects')
             .then(function (res) { return res.json(); })
             .then(renderProjectsList)
             .catch(function () {});
     }
 
     function update() {
-        fetch('/blackhole/stats')
+        fetch('/sink/stats')
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var w = data.windows['1s'];
@@ -240,7 +240,7 @@
     }
 
     document.getElementById('clear-recent').addEventListener('click', function () {
-        fetch('/blackhole/recent', {method: 'DELETE'}).then(function () {
+        fetch('/sink/recent', {method: 'DELETE'}).then(function () {
             renderRecent([]);
         });
     });
@@ -291,7 +291,7 @@
             return;
         }
         document.getElementById('project-active-name').textContent = project.name;
-        var prefix = '/blackhole/' + project.name + '/';
+        var prefix = '/sink/' + project.name + '/';
         document.getElementById('project-path-prefix').textContent = prefix;
         activeEl.hidden = false;
 
@@ -306,7 +306,7 @@
         var errorEl = document.getElementById('project-form-error');
         errorEl.textContent = '';
         var name = document.getElementById('project-name').value.trim();
-        fetch('/blackhole/projects', {
+        fetch('/sink/projects', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({name: name}),
@@ -334,7 +334,7 @@
         errorEl.textContent = '';
         var name = document.getElementById('project-restore-name').value.trim();
         var token = document.getElementById('project-restore-token').value.trim();
-        fetch('/blackhole/projects')
+        fetch('/sink/projects')
             .then(function (res) { return res.json(); })
             .then(function (projectList) {
                 if (!projectList.some(function (p) { return p.name === name; })) {
@@ -356,7 +356,7 @@
         errorEl.textContent = '';
         var name = document.getElementById('project-delete-name').value.trim();
         var token = document.getElementById('project-delete-token').value.trim();
-        fetch('/blackhole/projects/' + encodeURIComponent(name), {
+        fetch('/sink/projects/' + encodeURIComponent(name), {
             method: 'DELETE',
             headers: {'X-Blackhole-Token': token},
         }).then(function (res) {
@@ -395,7 +395,7 @@
             forgetProjectLocally();
             return;
         }
-        fetch('/blackhole/projects/' + encodeURIComponent(project.name), {
+        fetch('/sink/projects/' + encodeURIComponent(project.name), {
             method: 'DELETE',
             headers: {'X-Blackhole-Token': project.token},
         }).then(function (res) {
@@ -500,7 +500,7 @@
     }
 
     wireConfigSection({
-        endpoint: '/blackhole/config/latency',
+        endpoint: '/sink/config/latency',
         formId: 'latency-form',
         tbodyId: 'latency-body',
         errorId: 'latency-form-error',
@@ -512,7 +512,7 @@
     });
 
     wireConfigSection({
-        endpoint: '/blackhole/config/failure',
+        endpoint: '/sink/config/failure',
         formId: 'failure-form',
         tbodyId: 'failure-body',
         errorId: 'failure-form-error',

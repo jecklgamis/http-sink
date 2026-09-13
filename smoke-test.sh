@@ -19,12 +19,12 @@ ensure_get_ok http://localhost:38080/
 ensure_get_ok http://localhost:38080/build-info
 ensure_get_ok http://localhost:38080/probe/ready
 ensure_get_ok http://localhost:38080/probe/live
-ensure_get_ok http://localhost:38080/blackhole
-ensure_get_ok http://localhost:38080/blackhole/stats
+ensure_get_ok http://localhost:38080/sink
+ensure_get_ok http://localhost:38080/sink/stats
 
 ensure_get_ok https://localhost:8443/
 ensure_get_ok https://localhost:8443/build-info
 ensure_get_ok https://localhost:8443/probe/ready
 ensure_get_ok https://localhost:8443/probe/live
-ensure_get_ok https://localhost:8443/blackhole
-ensure_get_ok https://localhost:8443/blackhole/stats
+ensure_get_ok https://localhost:8443/sink
+ensure_get_ok https://localhost:8443/sink/stats

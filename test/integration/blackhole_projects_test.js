@@ -13,7 +13,7 @@ function uniqueName(prefix) {
 describe('Blackhole project-scoped config', () => {
     it('creates a project and returns a token', async () => {
         const name = uniqueName('proj');
-        const res = await request.execute(app).post('/blackhole/projects').send({name});
+        const res = await request.execute(app).post('/sink/projects').send({name});
         expect(res).to.have.status(201);
         expect(res.body.name).to.equal(name);
         expect(res.body.token).to.be.a('string').with.length.greaterThan(10);
@@ -21,61 +21,61 @@ describe('Blackhole project-scoped config', () => {
 
     it('rejects creating a project with a name already taken', async () => {
         const name = uniqueName('proj');
-        await request.execute(app).post('/blackhole/projects').send({name});
-        const res = await request.execute(app).post('/blackhole/projects').send({name});
+        await request.execute(app).post('/sink/projects').send({name});
+        const res = await request.execute(app).post('/sink/projects').send({name});
         expect(res).to.have.status(409);
     });
 
     it('rejects an invalid project name', async () => {
-        const res = await request.execute(app).post('/blackhole/projects').send({name: 'has spaces'});
+        const res = await request.execute(app).post('/sink/projects').send({name: 'has spaces'});
         expect(res).to.have.status(400);
     });
 
-    it('rejects latency config on bare /blackhole', async () => {
+    it('rejects latency config on bare /sink', async () => {
         const res = await request.execute(app)
-            .post('/blackhole/config/latency')
-            .send({path: '/blackhole', jitterMs: 100});
+            .post('/sink/config/latency')
+            .send({path: '/sink', jitterMs: 100});
         expect(res).to.have.status(400);
     });
 
     it('rejects config for a nonexistent project', async () => {
         const res = await request.execute(app)
-            .post('/blackhole/config/latency')
-            .send({path: '/blackhole/no-such-project-xyz/foo', jitterMs: 100});
+            .post('/sink/config/latency')
+            .send({path: '/sink/no-such-project-xyz/foo', jitterMs: 100});
         expect(res).to.have.status(404);
     });
 
     it('rejects config without a token and with the wrong token, allows it with the right token', async () => {
         const name = uniqueName('proj');
-        const createRes = await request.execute(app).post('/blackhole/projects').send({name});
+        const createRes = await request.execute(app).post('/sink/projects').send({name});
         const token = createRes.body.token;
-        const path = `/blackhole/${name}/scenario`;
+        const path = `/sink/${name}/scenario`;
 
         const noTokenRes = await request.execute(app)
-            .post('/blackhole/config/latency')
+            .post('/sink/config/latency')
             .send({path, jitterMs: 50});
         expect(noTokenRes).to.have.status(403);
 
         const wrongTokenRes = await request.execute(app)
-            .post('/blackhole/config/latency')
+            .post('/sink/config/latency')
             .set('X-Blackhole-Token', 'wrong-token')
             .send({path, jitterMs: 50});
         expect(wrongTokenRes).to.have.status(403);
 
         const okRes = await request.execute(app)
-            .post('/blackhole/config/latency')
+            .post('/sink/config/latency')
             .set('X-Blackhole-Token', token)
             .send({path, jitterMs: 50});
         expect(okRes).to.have.status(201);
 
         const deleteWrongTokenRes = await request.execute(app)
-            .delete('/blackhole/config/latency')
+            .delete('/sink/config/latency')
             .query({path})
             .set('X-Blackhole-Token', 'wrong-token');
         expect(deleteWrongTokenRes).to.have.status(403);
 
         const deleteOkRes = await request.execute(app)
-            .delete('/blackhole/config/latency')
+            .delete('/sink/config/latency')
             .query({path})
             .set('X-Blackhole-Token', token);
         expect(deleteOkRes).to.have.status(204);
@@ -83,18 +83,18 @@ describe('Blackhole project-scoped config', () => {
 
     it('allows configuring the project root path itself (no trailing scenario segment)', async () => {
         const name = uniqueName('proj');
-        const createRes = await request.execute(app).post('/blackhole/projects').send({name});
+        const createRes = await request.execute(app).post('/sink/projects').send({name});
         const token = createRes.body.token;
-        const path = `/blackhole/${name}`;
+        const path = `/sink/${name}`;
 
         const res = await request.execute(app)
-            .post('/blackhole/config/failure')
+            .post('/sink/config/failure')
             .set('X-Blackhole-Token', token)
             .send({path, rate: 0.5, statusCode: 500});
         expect(res).to.have.status(201);
 
         const cleanupRes = await request.execute(app)
-            .delete('/blackhole/config/failure')
+            .delete('/sink/config/failure')
             .query({path})
             .set('X-Blackhole-Token', token);
         expect(cleanupRes).to.have.status(204);
@@ -102,37 +102,37 @@ describe('Blackhole project-scoped config', () => {
 
     it('rejects deleting a project without a token or with the wrong token', async () => {
         const name = uniqueName('proj');
-        await request.execute(app).post('/blackhole/projects').send({name});
+        await request.execute(app).post('/sink/projects').send({name});
 
-        const noTokenRes = await request.execute(app).delete(`/blackhole/projects/${name}`);
+        const noTokenRes = await request.execute(app).delete(`/sink/projects/${name}`);
         expect(noTokenRes).to.have.status(403);
 
         const wrongTokenRes = await request.execute(app)
-            .delete(`/blackhole/projects/${name}`)
+            .delete(`/sink/projects/${name}`)
             .set('X-Blackhole-Token', 'wrong-token');
         expect(wrongTokenRes).to.have.status(403);
     });
 
     it('deleting a project with the right token frees the name and cleans up its configs', async () => {
         const name = uniqueName('proj');
-        const createRes = await request.execute(app).post('/blackhole/projects').send({name});
+        const createRes = await request.execute(app).post('/sink/projects').send({name});
         const token = createRes.body.token;
-        const path = `/blackhole/${name}/foo`;
+        const path = `/sink/${name}/foo`;
 
         await request.execute(app)
-            .post('/blackhole/config/failure')
+            .post('/sink/config/failure')
             .set('X-Blackhole-Token', token)
             .send({path, rate: 0.5, statusCode: 500});
 
         const deleteRes = await request.execute(app)
-            .delete(`/blackhole/projects/${name}`)
+            .delete(`/sink/projects/${name}`)
             .set('X-Blackhole-Token', token);
         expect(deleteRes).to.have.status(204);
 
-        const configsRes = await request.execute(app).get('/blackhole/config/failure');
+        const configsRes = await request.execute(app).get('/sink/config/failure');
         expect(configsRes.body.find(c => c.path === path)).to.be.undefined;
 
-        const recreateRes = await request.execute(app).post('/blackhole/projects').send({name});
+        const recreateRes = await request.execute(app).post('/sink/projects').send({name});
         expect(recreateRes).to.have.status(201);
         expect(recreateRes.body.token).to.not.equal(token);
     });

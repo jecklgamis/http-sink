@@ -31,11 +31,11 @@ Integration tests require SSL certificates — run `./generate-ssl-certs.sh` if 
 
 **Routes** (`routes/`): Each file exports an Express router for one endpoint group:
 - `index.js` → `GET /` — renders the live dashboard (`views/index.pug`)
-- `blackhole.js` → `ALL /blackhole` and `ALL /blackhole/*` — echoes back method/path/headers/body/etc. (httpbin-style), applying any configured latency/failure simulation for the exact path first. Also serves:
-  - `GET /blackhole/stats` — current traffic stats (polled by the dashboard every second)
-  - `DELETE /blackhole/recent` — clears the "Packet Inspection" (last 10 requests) buffer
-  - `GET/POST/DELETE /blackhole/config/latency` — manage per-path jitter delay config
-  - `GET/POST/DELETE /blackhole/config/failure` — manage per-path failure-rate/status-code injection config
+- `blackhole.js` → `ALL /sink` and `ALL /sink/*` — echoes back method/path/headers/body/etc. (httpbin-style), applying any configured latency/failure simulation for the exact path first. Also serves:
+  - `GET /sink/stats` — current traffic stats (polled by the dashboard every second)
+  - `DELETE /sink/recent` — clears the "Packet Inspection" (last 10 requests) buffer
+  - `GET/POST/DELETE /sink/config/latency` — manage per-path jitter delay config
+  - `GET/POST/DELETE /sink/config/failure` — manage per-path failure-rate/status-code injection config
 - `build_info.js` → `GET /build-info` (returns git branch, commit, build time from `build-info-data.js`)
 - `live_probe.js` / `ready_probe.js` → `GET /probe/live` and `GET /probe/ready` (Kubernetes health probes)
 
@@ -46,7 +46,7 @@ Integration tests require SSL certificates — run `./generate-ssl-certs.sh` if 
 - `blackhole/latency.js` — in-memory `path → jitterMs` map; `delayFor(path)` returns a random `0..jitterMs` delay
 - `blackhole/failure.js` — in-memory `path → {rate, statusCode}` map; `statusCodeFor(path)` rolls the dice per request
 
-**Front end**: `views/index.pug` + `public/javascripts/blackhole-stats.js` + `public/stylesheets/style.css` — a single-page dashboard that polls `/blackhole/stats` every second and renders: an RPS sparkline (30s history with grid/y-axis), RPS by path & method, the last-10-requests table (with freeze/clear controls and click-to-expand JSON cells), and the latency/failure config forms.
+**Front end**: `views/index.pug` + `public/javascripts/blackhole-stats.js` + `public/stylesheets/style.css` — a single-page dashboard that polls `/sink/stats` every second and renders: an RPS sparkline (30s history with grid/y-axis), RPS by path & method, the last-10-requests table (with freeze/clear controls and click-to-expand JSON cells), and the latency/failure config forms.
 
 **Build metadata**: `build-info-data.js` is a generated file (via `generate-build-info.sh`) that contains `branch`, `version` (commit hash), and `build_time`. It is committed when building locally but regenerated in CI.
 

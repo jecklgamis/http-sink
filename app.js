@@ -39,9 +39,9 @@ app.use(statusCodeMetrics)
 
 const blackholeStats = require('./middleware/blackhole/stats');
 const toIpv4 = ip => ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, '');
-const excludedFromStats = ['/blackhole/stats', '/blackhole/recent', '/blackhole/config/latency', '/blackhole/config/failure'];
-const isBlackholeTraffic = path => path === '/blackhole' || path.startsWith('/blackhole/');
-const isControlPlane = path => excludedFromStats.includes(path) || path === '/blackhole/projects' || path.startsWith('/blackhole/projects/');
+const excludedFromStats = ['/sink/stats', '/sink/recent', '/sink/config/latency', '/sink/config/failure'];
+const isBlackholeTraffic = path => path === '/sink' || path.startsWith('/sink/');
+const isControlPlane = path => excludedFromStats.includes(path) || path === '/sink/projects' || path.startsWith('/sink/projects/');
 app.use((req, res, next) => {
     if (isBlackholeTraffic(req.path) && !isControlPlane(req.path)) {
         const method = req.method;
@@ -63,7 +63,7 @@ app.use('/', indexRouter);
 app.use('/build-info', buildInfoRouter);
 app.use('/probe/live', liveProbeRouter);
 app.use('/probe/ready', readyProbeRouter);
-app.use('/blackhole', blackholeRouter);
+app.use('/sink', blackholeRouter);
 
 
 app.use((req, res, next) => {

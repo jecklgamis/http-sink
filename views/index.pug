@@ -63,7 +63,7 @@ block content
         code#project-path-prefix
       button#project-forget Delete project
 
-    p.section-info Latency/failure configs must live under /blackhole/&lt;project&gt;/... and require that project's token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.
+    p.section-info Latency/failure configs must live under /sink/&lt;project&gt;/... and require that project's token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.
 
     h4 Existing projects
     table#blackhole-projects
@@ -105,7 +105,7 @@ block content
     h3 Latency Simulation
     p.section-info Configure a path under your project and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Requires your project token.
     form#latency-form
-      input#latency-path(type='text' placeholder='/blackhole/my-project/foo' required)
+      input#latency-path(type='text' placeholder='/sink/my-project/foo' required)
       input#latency-jitter(type='number' placeholder='jitter ms' min='0' required)
       button(type='submit') Add
     span.form-error#latency-form-error
@@ -121,7 +121,7 @@ block content
     h3 Failure Injection
     p.section-info Configure a path under your project, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Requires your project token.
     form#failure-form
-      input#failure-path(type='text' placeholder='/blackhole/my-project/foo' list='failure-path-list' required)
+      input#failure-path(type='text' placeholder='/sink/my-project/foo' list='failure-path-list' required)
       datalist#failure-path-list
       select#failure-rate(required)
         option(value='0.05') 5%
