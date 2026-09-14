@@ -251,7 +251,7 @@
         freezeButton.textContent = recentFrozen ? 'Unfreeze' : 'Freeze';
     });
 
-    var PROJECT_STORAGE_KEY = 'blackholeProject';
+    var PROJECT_STORAGE_KEY = 'sinkProject';
 
     function getProject() {
         try {
@@ -358,7 +358,7 @@
         var token = document.getElementById('project-delete-token').value.trim();
         fetch('/sink/projects/' + encodeURIComponent(name), {
             method: 'DELETE',
-            headers: {'X-Blackhole-Token': token},
+            headers: {'X-Sink-Token': token},
         }).then(function (res) {
             if (res.ok) {
                 document.getElementById('project-delete-form').reset();
@@ -397,7 +397,7 @@
         }
         fetch('/sink/projects/' + encodeURIComponent(project.name), {
             method: 'DELETE',
-            headers: {'X-Blackhole-Token': project.token},
+            headers: {'X-Sink-Token': project.token},
         }).then(function (res) {
             if (res.ok || res.status === 404) {
                 if (errorEl) errorEl.textContent = '';
@@ -450,7 +450,7 @@
                 removeButton.addEventListener('click', function () {
                     var headers = {};
                     var token = getProjectToken();
-                    if (token) headers['X-Blackhole-Token'] = token;
+                    if (token) headers['X-Sink-Token'] = token;
                     fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE', headers: headers})
                         .then(refresh);
                 });
@@ -477,7 +477,7 @@
             });
             var headers = {'Content-Type': 'application/json'};
             var token = getProjectToken();
-            if (token) headers['X-Blackhole-Token'] = token;
+            if (token) headers['X-Sink-Token'] = token;
             fetch(opts.endpoint, {
                 method: 'POST',
                 headers: headers,

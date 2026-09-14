@@ -24,7 +24,7 @@ block content
         span -15s
         span now
 
-    table#blackhole-breakdown
+    table#sink-breakdown
       thead
         tr
           th Path
@@ -37,7 +37,7 @@ block content
     h3 Packet Inspection
     button#clear-recent Clear
     button#freeze-recent Freeze
-    table#blackhole-recent
+    table#sink-recent
       thead
         tr
           th Time
@@ -66,7 +66,7 @@ block content
     p.section-info Latency/failure configs must live under /sink/&lt;project&gt;/... and require that project's token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.
 
     h4 Existing projects
-    table#blackhole-projects
+    table#sink-projects
       thead
         tr
           th Name
@@ -109,7 +109,7 @@ block content
       input#latency-jitter(type='number' placeholder='jitter ms' min='0' required)
       button(type='submit') Add
     span.form-error#latency-form-error
-    table#blackhole-latency
+    table#sink-latency
       thead
         tr
           th Path
@@ -143,7 +143,7 @@ block content
         option(value='504') 504 Gateway Timeout
       button(type='submit') Add
     span.form-error#failure-form-error
-    table#blackhole-failure
+    table#sink-failure
       thead
         tr
           th Path
@@ -160,4 +160,4 @@ block content
     pre: code.
       docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main
 
-  script(src='/javascripts/blackhole-stats.js')
+  script(src='/javascripts/sink-stats.js')

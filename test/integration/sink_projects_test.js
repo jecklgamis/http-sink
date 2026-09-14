@@ -10,7 +10,7 @@ function uniqueName(prefix) {
     return prefix + '-' + Math.random().toString(36).slice(2, 8);
 }
 
-describe('Blackhole project-scoped config', () => {
+describe('Sink project-scoped config', () => {
     it('creates a project and returns a token', async () => {
         const name = uniqueName('proj');
         const res = await request.execute(app).post('/sink/projects').send({name});
@@ -58,26 +58,26 @@ describe('Blackhole project-scoped config', () => {
 
         const wrongTokenRes = await request.execute(app)
             .post('/sink/config/latency')
-            .set('X-Blackhole-Token', 'wrong-token')
+            .set('X-Sink-Token', 'wrong-token')
             .send({path, jitterMs: 50});
         expect(wrongTokenRes).to.have.status(403);
 
         const okRes = await request.execute(app)
             .post('/sink/config/latency')
-            .set('X-Blackhole-Token', token)
+            .set('X-Sink-Token', token)
             .send({path, jitterMs: 50});
         expect(okRes).to.have.status(201);
 
         const deleteWrongTokenRes = await request.execute(app)
             .delete('/sink/config/latency')
             .query({path})
-            .set('X-Blackhole-Token', 'wrong-token');
+            .set('X-Sink-Token', 'wrong-token');
         expect(deleteWrongTokenRes).to.have.status(403);
 
         const deleteOkRes = await request.execute(app)
             .delete('/sink/config/latency')
             .query({path})
-            .set('X-Blackhole-Token', token);
+            .set('X-Sink-Token', token);
         expect(deleteOkRes).to.have.status(204);
     });
 
@@ -89,14 +89,14 @@ describe('Blackhole project-scoped config', () => {
 
         const res = await request.execute(app)
             .post('/sink/config/failure')
-            .set('X-Blackhole-Token', token)
+            .set('X-Sink-Token', token)
             .send({path, rate: 0.5, statusCode: 500});
         expect(res).to.have.status(201);
 
         const cleanupRes = await request.execute(app)
             .delete('/sink/config/failure')
             .query({path})
-            .set('X-Blackhole-Token', token);
+            .set('X-Sink-Token', token);
         expect(cleanupRes).to.have.status(204);
     });
 
@@ -109,7 +109,7 @@ describe('Blackhole project-scoped config', () => {
 
         const wrongTokenRes = await request.execute(app)
             .delete(`/sink/projects/${name}`)
-            .set('X-Blackhole-Token', 'wrong-token');
+            .set('X-Sink-Token', 'wrong-token');
         expect(wrongTokenRes).to.have.status(403);
     });
 
@@ -121,12 +121,12 @@ describe('Blackhole project-scoped config', () => {
 
         await request.execute(app)
             .post('/sink/config/failure')
-            .set('X-Blackhole-Token', token)
+            .set('X-Sink-Token', token)
             .send({path, rate: 0.5, statusCode: 500});
 
         const deleteRes = await request.execute(app)
             .delete(`/sink/projects/${name}`)
-            .set('X-Blackhole-Token', token);
+            .set('X-Sink-Token', token);
         expect(deleteRes).to.have.status(204);
 
         const configsRes = await request.execute(app).get('/sink/config/failure');

@@ -31,7 +31,7 @@ Integration tests require SSL certificates — run `./generate-ssl-certs.sh` if 
 
 **Routes** (`routes/`): Each file exports an Express router for one endpoint group:
 - `index.js` → `GET /` — renders the live dashboard (`views/index.pug`)
-- `blackhole.js` → `ALL /sink` and `ALL /sink/*` — echoes back method/path/headers/body/etc. (httpbin-style), applying any configured latency/failure simulation for the exact path first. Also serves:
+- `sink.js` → `ALL /sink` and `ALL /sink/*` — echoes back method/path/headers/body/etc. (httpbin-style), applying any configured latency/failure simulation for the exact path first. Also serves:
   - `GET /sink/stats` — current traffic stats (polled by the dashboard every second)
   - `DELETE /sink/recent` — clears the "Packet Inspection" (last 10 requests) buffer
   - `GET/POST/DELETE /sink/config/latency` — manage per-path jitter delay config
@@ -42,11 +42,11 @@ Integration tests require SSL certificates — run `./generate-ssl-certs.sh` if 
 **Middleware** (`middleware/`):
 - `statsd/timing.js` — records request duration per endpoint (StatsD)
 - `statsd/status_code.js` — counts responses by status class (2xx/3xx/4xx/5xx) per endpoint (StatsD)
-- `blackhole/stats.js` — in-memory traffic recorder: tracks every non-config request (method, path, headers, body, user agent, remote address, response time, status code), computes 1s-window RPS/counts by path & method, keeps a 30-bucket RPS history for the dashboard sparkline, and a capped 10-entry "recent requests" ring buffer
-- `blackhole/latency.js` — in-memory `path → jitterMs` map; `delayFor(path)` returns a random `0..jitterMs` delay
-- `blackhole/failure.js` — in-memory `path → {rate, statusCode}` map; `statusCodeFor(path)` rolls the dice per request
+- `sink/stats.js` — in-memory traffic recorder: tracks every non-config request (method, path, headers, body, user agent, remote address, response time, status code), computes 1s-window RPS/counts by path & method, keeps a 30-bucket RPS history for the dashboard sparkline, and a capped 10-entry "recent requests" ring buffer
+- `sink/latency.js` — in-memory `path → jitterMs` map; `delayFor(path)` returns a random `0..jitterMs` delay
+- `sink/failure.js` — in-memory `path → {rate, statusCode}` map; `statusCodeFor(path)` rolls the dice per request
 
-**Front end**: `views/index.pug` + `public/javascripts/blackhole-stats.js` + `public/stylesheets/style.css` — a single-page dashboard that polls `/sink/stats` every second and renders: an RPS sparkline (30s history with grid/y-axis), RPS by path & method, the last-10-requests table (with freeze/clear controls and click-to-expand JSON cells), and the latency/failure config forms.
+**Front end**: `views/index.pug` + `public/javascripts/sink-stats.js` + `public/stylesheets/style.css` — a single-page dashboard that polls `/sink/stats` every second and renders: an RPS sparkline (30s history with grid/y-axis), RPS by path & method, the last-10-requests table (with freeze/clear controls and click-to-expand JSON cells), and the latency/failure config forms.
 
 **Build metadata**: `build-info-data.js` is a generated file (via `generate-build-info.sh`) that contains `branch`, `version` (commit hash), and `build_time`. It is committed when building locally but regenerated in CI.
 

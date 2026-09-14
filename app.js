@@ -6,7 +6,7 @@ const logger = require('morgan');
 
 const indexRouter = require('./routes/index');
 const buildInfoRouter = require('./routes/build_info.js');
-const blackholeRouter = require('./routes/blackhole.js');
+const sinkRouter = require('./routes/sink.js');
 const liveProbeRouter = require('./routes/live_probe.js');
 const readyProbeRouter = require('./routes/ready_probe.js');
 
@@ -37,13 +37,13 @@ app.use(timingMetrics)
 const statusCodeMetrics = require("./middleware/statsd/status_code")
 app.use(statusCodeMetrics)
 
-const blackholeStats = require('./middleware/blackhole/stats');
+const sinkStats = require('./middleware/sink/stats');
 const toIpv4 = ip => ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, '');
 const excludedFromStats = ['/sink/stats', '/sink/recent', '/sink/config/latency', '/sink/config/failure'];
-const isBlackholeTraffic = path => path === '/sink' || path.startsWith('/sink/');
+const isSinkTraffic = path => path === '/sink' || path.startsWith('/sink/');
 const isControlPlane = path => excludedFromStats.includes(path) || path === '/sink/projects' || path.startsWith('/sink/projects/');
 app.use((req, res, next) => {
-    if (isBlackholeTraffic(req.path) && !isControlPlane(req.path)) {
+    if (isSinkTraffic(req.path) && !isControlPlane(req.path)) {
         const method = req.method;
         const path = req.path;
         const remoteAddress = toIpv4(req.ip);
@@ -53,7 +53,7 @@ app.use((req, res, next) => {
         const startTime = Date.now();
         res.on('finish', () => {
             const responseTimeMs = Date.now() - startTime;
-            blackholeStats.record(method, path, remoteAddress, body, userAgent, headers, responseTimeMs, res.statusCode);
+            sinkStats.record(method, path, remoteAddress, body, userAgent, headers, responseTimeMs, res.statusCode);
         });
     }
     next();
@@ -63,7 +63,7 @@ app.use('/', indexRouter);
 app.use('/build-info', buildInfoRouter);
 app.use('/probe/live', liveProbeRouter);
 app.use('/probe/ready', readyProbeRouter);
-app.use('/sink', blackholeRouter);
+app.use('/sink', sinkRouter);
 
 
 app.use((req, res, next) => {

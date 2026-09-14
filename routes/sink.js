@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const stats = require('../middleware/blackhole/stats');
-const latency = require('../middleware/blackhole/latency');
-const failure = require('../middleware/blackhole/failure');
-const projects = require('../middleware/blackhole/projects');
+const stats = require('../middleware/sink/stats');
+const latency = require('../middleware/sink/latency');
+const failure = require('../middleware/sink/failure');
+const projects = require('../middleware/sink/projects');
 
 router.get('/stats', function (req, res) {
     res.json(stats.computeStats());
@@ -39,7 +39,7 @@ function authorizeProjectToken(req, projectName) {
             error: `project '${projectName}' does not exist -- create it first via POST /sink/projects`,
         };
     }
-    const token = req.get('X-Blackhole-Token');
+    const token = req.get('X-Sink-Token');
     if (!token || !projects.verify(projectName, token)) {
         return {status: 403, error: `invalid or missing token for project '${projectName}'`};
     }

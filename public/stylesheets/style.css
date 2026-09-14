@@ -83,16 +83,16 @@ div#failure-section {
   border-color: #f3d9e0;
 }
 
-table#blackhole-breakdown,
-table#blackhole-recent {
+table#sink-breakdown,
+table#sink-recent {
   border-collapse: collapse;
   margin-top: 10px;
 }
 
-table#blackhole-breakdown th,
-table#blackhole-breakdown td,
-table#blackhole-recent th,
-table#blackhole-recent td {
+table#sink-breakdown th,
+table#sink-breakdown td,
+table#sink-recent th,
+table#sink-recent td {
   border: 1px solid #ccc;
   padding: 6px 12px;
   text-align: left;
@@ -152,7 +152,7 @@ input#project-token {
   font-family: monospace;
 }
 
-table#blackhole-recent pre {
+table#sink-recent pre {
   background: none;
   color: inherit;
   padding: 0;
@@ -180,23 +180,23 @@ td.body-cell:hover {
   margin-right: 8px;
 }
 
-table#blackhole-recent td.user-agent-cell {
+table#sink-recent td.user-agent-cell {
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-table#blackhole-latency,
-table#blackhole-projects {
+table#sink-latency,
+table#sink-projects {
   border-collapse: collapse;
   margin-top: 10px;
 }
 
-table#blackhole-latency th,
-table#blackhole-latency td,
-table#blackhole-projects th,
-table#blackhole-projects td {
+table#sink-latency th,
+table#sink-latency td,
+table#sink-projects th,
+table#sink-projects td {
   border: 1px solid #ccc;
   padding: 6px 12px;
   text-align: left;
@@ -210,13 +210,13 @@ table#blackhole-projects td {
   margin-top: 10px;
 }
 
-table#blackhole-failure {
+table#sink-failure {
   border-collapse: collapse;
   margin-top: 10px;
 }
 
-table#blackhole-failure th,
-table#blackhole-failure td {
+table#sink-failure th,
+table#sink-failure td {
   border: 1px solid #ccc;
   padding: 6px 12px;
   text-align: left;
