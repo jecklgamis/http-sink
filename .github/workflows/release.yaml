@@ -28,7 +28,7 @@ jobs:
           echo "npm_version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'npm'
@@ -41,7 +41,7 @@ jobs:
           npm test
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: Package Helm chart with release version
         run: |
@@ -61,7 +61,7 @@ jobs:
           tar -czf "dist/http-sink-${{ steps.version.outputs.tag }}-sources.tar.gz" -C /tmp/src "http-sink-${{ steps.version.outputs.tag }}"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}

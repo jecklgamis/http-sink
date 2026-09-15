@@ -7,6 +7,9 @@ npm-debug.log
 server.key
 server.crt
 
+# persisted sink config (projects/latency/failure) -- see middleware/sink/store.js
+data/
+
 # helm package/dry-run output
 deployment/k8s/helm/*.tgz
 deployment/k8s/helm/dry-run.txt
