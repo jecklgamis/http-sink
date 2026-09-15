@@ -296,4 +296,15 @@ block content
           th
       tbody#response-template-list-body
 
+  div#unique-ips-section
+    h3 Client IPs
+    p.section-info#unique-ips-info Origin addresses seen in the last 30s of traffic.
+    table#sink-unique-ips
+      thead
+        tr
+          th IP
+          th Requests
+          th Last seen
+      tbody#unique-ips-body
+
   script(src='/javascripts/sink-stats.js')

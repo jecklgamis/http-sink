@@ -38,6 +38,32 @@
         });
     }
 
+    function renderUniqueIps(uniqueIps, windowSeconds) {
+        var infoEl = document.getElementById('unique-ips-info');
+        if (infoEl) infoEl.textContent = 'Origin addresses seen in the last ' + windowSeconds + 's of traffic.';
+
+        var tbody = document.getElementById('unique-ips-body');
+        tbody.innerHTML = '';
+        if (uniqueIps.length === 0) {
+            var emptyRow = document.createElement('tr');
+            var emptyCell = document.createElement('td');
+            emptyCell.colSpan = 3;
+            emptyCell.textContent = 'no traffic';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+            return;
+        }
+        uniqueIps.forEach(function (row) {
+            var tr = document.createElement('tr');
+            [row.ip, row.count, new Date(row.lastSeen).toLocaleTimeString()].forEach(function (value) {
+                var td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
     var expandedKeys = {};
 
     function formatTimeWithMs(timestamp) {
@@ -229,6 +255,7 @@
                 renderRpsSparkline(data.rpsHistory);
                 renderBreakdown(w.byPathAndMethod, w.rpsByPathAndMethod);
                 updateKnownPaths(w.byPath);
+                renderUniqueIps(data.uniqueIps, data.uniqueIpWindowSeconds);
                 if (!recentFrozen) {
                     renderRecent(data.recentRequests);
                 }

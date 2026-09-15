@@ -76,6 +76,17 @@ function computeStats() {
 
     const recentRequests = recent.slice().reverse();
 
+    const ipStats = {};
+    for (const r of requests) {
+        const entry = ipStats[r.remoteAddress] || {count: 0, lastSeen: 0};
+        entry.count++;
+        entry.lastSeen = Math.max(entry.lastSeen, r.timestamp);
+        ipStats[r.remoteAddress] = entry;
+    }
+    const uniqueIps = Object.keys(ipStats)
+        .map(ip => ({ip, count: ipStats[ip].count, lastSeen: ipStats[ip].lastSeen}))
+        .sort((a, b) => b.count - a.count);
+
     const rpsHistory = [];
     for (let i = RPS_HISTORY_SECONDS - 1; i >= 0; i--) {
         const bucketEnd = now - i * 1000;
@@ -87,7 +98,7 @@ function computeStats() {
         rpsHistory.push(count);
     }
 
-    return {now, windows, recentRequests, rpsHistory};
+    return {now, windows, recentRequests, rpsHistory, uniqueIps, uniqueIpWindowSeconds: MAX_AGE_MS / 1000};
 }
 
 function clearRecent() {

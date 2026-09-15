@@ -77,7 +77,8 @@ div#project-section,
 div#latency-section,
 div#failure-section,
 div#chaos-preset-section,
-div#response-template-section {
+div#response-template-section,
+div#unique-ips-section {
   border-radius: 8px;
   padding: 16px 20px;
   margin: 16px 0;
@@ -124,6 +125,24 @@ div#failure-section {
 div#response-template-section {
   background: #eef2fb;
   border-color: #d8e1f5;
+}
+
+div#unique-ips-section {
+  background: #f1f6ee;
+  border-color: #dbe8d3;
+}
+
+table#sink-unique-ips {
+  border-collapse: collapse;
+  margin-top: 10px;
+  width: 100%;
+}
+
+table#sink-unique-ips th,
+table#sink-unique-ips td {
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  text-align: left;
 }
 
 div#chaos-preset-section {
