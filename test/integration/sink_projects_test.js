@@ -136,4 +136,21 @@ describe('Sink project-scoped config', () => {
         expect(recreateRes).to.have.status(201);
         expect(recreateRes.body.token).to.not.equal(token);
     });
+
+    it('rejects creating a project named after a reserved sink utility', async () => {
+        const res = await request.execute(app).post('/sink/projects').send({name: 'uuid'});
+        expect(res).to.have.status(400);
+    });
+
+    it('rejects latency/failure config paths that shadow a reserved sink utility', async () => {
+        const latencyRes = await request.execute(app)
+            .post('/sink/config/latency')
+            .send({path: '/sink/headers', jitterMs: 100});
+        expect(latencyRes).to.have.status(400);
+
+        const failureRes = await request.execute(app)
+            .post('/sink/config/failure')
+            .send({path: '/sink/bytes', rate: 1, statusCode: 500});
+        expect(failureRes).to.have.status(400);
+    });
 });
