@@ -6,6 +6,8 @@ A request sink for testing HTTP clients: `/sink` accepts any method or subpath, 
 
 Docker:  `docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main`
 
+Live instance: [http-sink.jecklgamis.com](https://http-sink.jecklgamis.com)
+
 What's In The Box?
 
 * `GET|POST|PUT|...  /sink` and `/sink/*` — echoes method, path, headers, body, query args, and origin IP as JSON (httpbin-style)
