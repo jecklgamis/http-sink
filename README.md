@@ -54,20 +54,7 @@ make int-tests          # integration tests (test/integration)
 
 ## Metrics
 
-All the endpoints are instrumented with timing and status code counters using Statsd.
-
-* <endpoint.name>.duration - timer
-* <endpoint.name>.hits - counter
-* <endpoint.name>.2xx - counter
-* <endpoint.name>.3xx - counter
-* <endpoint.name>.4xx - counter
-* <endpoint.name>.5xx - counter
-
-The same request/response data is also exposed in Prometheus format at `GET /metrics`:
-
-* `http_requests_total{method,route,status_code}` - counter
-* `http_request_duration_seconds{method,route,status_code}` - histogram
-* plus Node.js default process metrics (memory, event loop lag, GC, etc.)
+Every endpoint is instrumented with timing and status-code counters, available via StatsD and at `GET /metrics` (Prometheus format).
 
 `route` is bucketed to the top-level path segment (e.g. everything under `/sink/*` becomes `route="/sink"`) since `/sink` accepts arbitrary echoed subpaths and unbounded label cardinality would grow the metrics endpoint unbounded.
 
