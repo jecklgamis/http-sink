@@ -1,11 +1,16 @@
-let configs = {};
+const {createStore} = require('./store');
+
+const store = createStore('latency');
+const configs = store.data;
 
 function set(path, jitterMs) {
     configs[path] = jitterMs;
+    store.persist();
 }
 
 function remove(path) {
     delete configs[path];
+    store.persist();
 }
 
 function list() {

@@ -1,6 +1,8 @@
 const crypto = require('crypto');
+const {createStore} = require('./store');
 
-let projects = {};
+const store = createStore('projects');
+const projects = store.data;
 
 function create(name) {
     if (projects[name]) {
@@ -8,6 +10,7 @@ function create(name) {
     }
     const token = crypto.randomBytes(24).toString('hex');
     projects[name] = {token, createdAt: Date.now()};
+    store.persist();
     return token;
 }
 
@@ -25,6 +28,7 @@ function list() {
 
 function remove(name) {
     delete projects[name];
+    store.persist();
 }
 
 module.exports = {create, exists, verify, list, remove};

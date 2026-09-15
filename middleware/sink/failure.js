@@ -1,11 +1,16 @@
-let configs = {};
+const {createStore} = require('./store');
+
+const store = createStore('failure');
+const configs = store.data;
 
 function set(path, rate, statusCode) {
     configs[path] = {rate, statusCode};
+    store.persist();
 }
 
 function remove(path) {
     delete configs[path];
+    store.persist();
 }
 
 function list() {

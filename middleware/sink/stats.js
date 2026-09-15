@@ -9,7 +9,7 @@ const RECENT_LIMIT = 10;
 let requests = [];
 let recent = [];
 
-function record(method, path, remoteAddress, body, userAgent, headers, responseTimeMs, statusCode) {
+function record(method, path, remoteAddress, body, userAgent, headers, responseTimeMs, statusCode, responseHeaders, responseBody) {
     const hasBody = body && (typeof body !== 'object' || Object.keys(body).length > 0);
     const entry = {
         timestamp: Date.now(),
@@ -21,6 +21,8 @@ function record(method, path, remoteAddress, body, userAgent, headers, responseT
         responseTimeMs,
         statusCode,
         body: hasBody ? body : undefined,
+        responseHeaders,
+        responseBody,
     };
     requests.push(entry);
     recent.push(entry);
