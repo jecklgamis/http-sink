@@ -42,40 +42,17 @@ See `CLAUDE.md` for full endpoint/config details.
 * [Docker](https://docs.docker.com/get-docker/)
 * GNU Make
 
-Most build and run commands are wrapped inside Makefile. Explore this one to see what the existing targets you can
-invoke of if you like to add one.
+All build/run/test commands are Makefile targets — see the [Makefile](Makefile) for the full list.
 
-## Building
-```
-make install-deps
-make all
-```
-
-## Running
-```
-make up
+```bash
+make install-deps      # npm install + global mocha, nodemon
+make up                # tests + build + run (Docker)
+make run-app-dev-mode   # run locally with nodemon + verbose logging
+make tests              # unit tests (test/unit)
+make int-tests          # integration tests (test/integration)
 ```
 
-Run app in development mode. This uses `nodemon` to auto reload modified files and enables verbose logging.
-
-```
-make run-app-dev-mode
-```
-
-## Testing
-
-Run unit tests (all tests under `test/unit`):
-
-```
-make tests
-```
-
-Run integration tests (all tests under `test/integration`):
-
-```
-make int-tests
-```
-
+## Metrics
 
 All the endpoints are instrumented with timing and status code counters using Statsd.
 
