@@ -5,8 +5,15 @@ block content
   p.tagline Relax, sink it.
   p= message
 
+  p: a(href='https://github.com/jecklgamis/http-sink' target='_blank' rel='noopener') View on GitHub
+  div#docker-cmd-wrap
+    pre
+      code#docker-cmd.
+        docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main
+    button#docker-cmd-copy(type='button' aria-label='Copy command' title='Copy command') 📋
+
   div#live-stats-section
-    h2 Live Traffic Stats
+    h3 Live Traffic Stats
 
     div#rps-sparkline-wrap
       div#rps-sparkline-row
@@ -30,7 +37,6 @@ block content
           th Path
           th Method
           th RPS
-          th Count
       tbody#breakdown-body
 
   div#packet-inspection-section
@@ -49,11 +55,93 @@ block content
           th User agent
           th Headers
           th Body
+          th Response headers
+          th Response body
       tbody#recent-body
     p.stats-updated#stats-updated updating...
 
+  div#endpoints-section
+    h3 Endpoints
+
+    h4 Sink
+    table#sink-endpoints-sink
+      thead
+        tr
+          th Method
+          th Path
+          th Test
+          th Description
+      tbody
+        tr
+          td ALL
+          td /sink, /sink/*
+          td: button.curl-test(type='button' data-method='POST' data-path='/sink' data-body='{"hello":"world"}') Test it!
+          td httpbin-style echo of method/path/headers/body/args/origin, with latency/failure injection applied first
+
+    h4 Sink utilities
+    table#sink-endpoints-utils
+      thead
+        tr
+          th Method
+          th Path
+          th Test
+          th Description
+      tbody
+        tr
+          td GET
+          td /sink/headers
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/headers') Test it!
+          td Returns the request headers
+        tr
+          td GET
+          td /sink/ip
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/ip') Test it!
+          td Returns the caller's origin address
+        tr
+          td GET
+          td /sink/user-agent
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/user-agent') Test it!
+          td Returns the User-Agent header
+        tr
+          td GET
+          td /sink/uuid
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/uuid') Test it!
+          td Returns a random UUID
+        tr
+          td GET
+          td /sink/status/:code
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/status/503') Test it!
+          td Responds with the given status code (100-599)
+        tr
+          td GET
+          td /sink/delay/:seconds
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/delay/2') Test it!
+          td Delays the response by the given number of seconds (max 10)
+        tr
+          td GET
+          td /sink/redirect/:n
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/redirect/3') Test it!
+          td Redirects n times before responding (max 20)
+        tr
+          td GET
+          td /sink/response-headers
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/response-headers?X-Foo=bar') Test it!
+          td Echoes query params back as response headers
+        tr
+          td GET
+          td /sink/stream/:n
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/stream/5') Test it!
+          td Streams n JSON lines (max 100)
+        tr
+          td GET
+          td /sink/bytes/:n
+          td: button.curl-test(type='button' data-method='GET' data-path='/sink/bytes/32') Test it!
+          td Returns n random bytes (max 100KB)
+
   div#project-section
     h3 Project
+
+    p.section-info Found a bug or have feedback? Please raise an issue on #[a(href='https://github.com/jecklgamis/http-sink/issues' target='_blank' rel='noopener') GitHub].
 
     div#project-active(hidden)
       p
@@ -152,12 +240,60 @@ block content
           th
       tbody#failure-body
 
-  div#about-section
-    h2 Project
-    p: a(href='https://github.com/jecklgamis/http-sink' target='_blank' rel='noopener') View on GitHub
+  div#chaos-preset-section
+    h3 Chaos Presets
+    p.section-info Apply a canned latency + failure combo to a path in one click, instead of configuring each separately. Requires your project token.
+    div#chaos-preset-controls
+      input#chaos-preset-path(type='text' placeholder='/sink/my-project/foo' required)
+      button.chaos-preset(type='button' data-preset='flaky-network') Flaky network
+      button.chaos-preset(type='button' data-preset='slow-db') Slow DB
+      button.chaos-preset(type='button' data-preset='intermittent-5xx') Intermittent 5xx
+    span.form-error#chaos-preset-error
+    p.section-info
+      | Flaky network: 0-500ms jitter, 15% chance of 503.
+      br
+      | Slow DB: 0-4000ms jitter, 5% chance of 504.
+      br
+      | Intermittent 5xx: no jitter, 30% chance of 500.
 
-    h4 Run locally
-    pre: code.
-      docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main
+  div#response-template-section
+    h3 Response Templates
+    p.section-info Configure a path (and optionally a method) under your project with a fixed status code, optional headers, and optional JSON body. Requests to the exact path (and method, if set) get that response instead of the normal echo (failure injection, if also configured, still takes precedence). A template with no method matches any method; a method-specific template takes precedence over one for "Any". Requires your project token.
+    form#response-template-form
+      input#response-template-path(type='text' placeholder='/sink/my-project/foo' required)
+      select#response-template-method
+        option(value='') Any method
+        option(value='GET') GET
+        option(value='POST') POST
+        option(value='PUT') PUT
+        option(value='DELETE') DELETE
+        option(value='PATCH') PATCH
+        option(value='HEAD') HEAD
+        option(value='OPTIONS') OPTIONS
+      input#response-template-status(type='number' placeholder='status code' min='100' max='599' value='200' required)
+      textarea#response-template-headers(rows='6').
+        {
+          "X-Request-Id": "a1b2c3d4",
+          "Cache-Control": "no-store"
+        }
+      textarea#response-template-body-input(rows='10').
+        {
+          "orderId": 9981,
+          "status": "shipped",
+          "items": [{"sku": "WIDGET-42", "qty": 3}],
+          "total": 59.97
+        }
+      button(type='submit') Add
+    span.form-error#response-template-form-error
+    table#sink-response-template
+      thead
+        tr
+          th Path
+          th Method
+          th Status code
+          th Headers
+          th Body
+          th
+      tbody#response-template-list-body
 
   script(src='/javascripts/sink-stats.js')

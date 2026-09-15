@@ -32,6 +32,30 @@ pre {
   max-width: 100%;
 }
 
+#docker-cmd-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+#docker-cmd-wrap pre {
+  padding-right: 48px;
+}
+
+#docker-cmd-copy {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  padding: 3px 6px;
+  margin-bottom: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
 
 input,
 select,
@@ -46,16 +70,30 @@ a {
   color: #00B7FF;
 }
 
+div#endpoints-section,
 div#live-stats-section,
 div#packet-inspection-section,
 div#project-section,
 div#latency-section,
-div#failure-section {
+div#failure-section,
+div#chaos-preset-section,
+div#response-template-section {
   border-radius: 8px;
   padding: 16px 20px;
   margin: 16px 0;
   border: 1px solid transparent;
   overflow-x: auto;
+}
+
+div#endpoints-section {
+  background: #fdf8e3;
+  border-color: #f0e5b8;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+div#endpoints-section h3 {
+  margin-top: 0;
 }
 
 div#live-stats-section {
@@ -83,19 +121,88 @@ div#failure-section {
   border-color: #f3d9e0;
 }
 
+div#response-template-section {
+  background: #eef2fb;
+  border-color: #d8e1f5;
+}
+
+div#chaos-preset-section {
+  background: #f5f0e6;
+  border-color: #e6dbc3;
+}
+
+#chaos-preset-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+#chaos-preset-path {
+  width: 260px;
+}
+
 table#sink-breakdown,
-table#sink-recent {
+table#sink-recent,
+table#sink-endpoints-sink,
+table#sink-endpoints-utils {
   border-collapse: collapse;
   margin-top: 10px;
+  width: 100%;
+}
+
+table#sink-endpoints-sink,
+table#sink-endpoints-utils {
+  table-layout: fixed;
 }
 
 table#sink-breakdown th,
 table#sink-breakdown td,
 table#sink-recent th,
-table#sink-recent td {
+table#sink-recent td,
+table#sink-endpoints-sink th,
+table#sink-endpoints-sink td,
+table#sink-endpoints-utils th,
+table#sink-endpoints-utils td {
   border: 1px solid #ccc;
   padding: 6px 12px;
   text-align: left;
+}
+
+table#sink-endpoints-sink td,
+table#sink-endpoints-utils td {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+table#sink-endpoints-sink td:first-child,
+table#sink-endpoints-utils td:first-child {
+  font-family: monospace;
+  width: 14%;
+}
+
+table#sink-endpoints-sink td:nth-child(2),
+table#sink-endpoints-utils td:nth-child(2) {
+  font-family: monospace;
+  width: 22%;
+}
+
+table#sink-endpoints-sink td:nth-child(3),
+table#sink-endpoints-utils td:nth-child(3) {
+  width: 90px;
+}
+
+table#sink-endpoints-sink td:nth-child(4),
+table#sink-endpoints-utils td:nth-child(4) {
+  width: auto;
+}
+
+.curl-test {
+  font-size: 12px;
+  padding: 3px 8px;
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
 .stats-updated {
@@ -232,6 +339,47 @@ table#sink-failure td {
 
 #failure-path {
   width: 260px;
+}
+
+#response-template-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+}
+
+#response-template-path {
+  width: 220px;
+}
+
+#response-template-headers,
+#response-template-body-input {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 240px;
+  font-family: monospace;
+  font-size: 13px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+table#sink-response-template {
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table#sink-response-template th,
+table#sink-response-template td {
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+table#sink-latency button + button,
+table#sink-failure button + button,
+table#sink-response-template button + button {
+  margin-left: 6px;
 }
 
 #failure-rate {

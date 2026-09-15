@@ -21,7 +21,7 @@
         if (rows.length === 0) {
             var emptyRow = document.createElement('tr');
             var emptyCell = document.createElement('td');
-            emptyCell.colSpan = 4;
+            emptyCell.colSpan = 3;
             emptyCell.textContent = 'no traffic';
             emptyRow.appendChild(emptyCell);
             tbody.appendChild(emptyRow);
@@ -29,7 +29,7 @@
         }
         rows.forEach(function (row) {
             var tr = document.createElement('tr');
-            [row.path, row.method, row.rps, row.count].forEach(function (value) {
+            [row.path, row.method, row.rps].forEach(function (value) {
                 var td = document.createElement('td');
                 td.textContent = value;
                 tr.appendChild(td);
@@ -78,7 +78,7 @@
         if (recentRequests.length === 0) {
             var emptyRow = document.createElement('tr');
             var emptyCell = document.createElement('td');
-            emptyCell.colSpan = 9;
+            emptyCell.colSpan = 11;
             emptyCell.textContent = 'no requests yet';
             emptyRow.appendChild(emptyCell);
             tbody.appendChild(emptyRow);
@@ -103,6 +103,8 @@
 
             tr.appendChild(buildExpandableCell(r.headers, key + ':headers'));
             tr.appendChild(buildExpandableCell(r.body, key + ':body'));
+            tr.appendChild(buildExpandableCell(r.responseHeaders, key + ':responseHeaders'));
+            tr.appendChild(buildExpandableCell(r.responseBody, key + ':responseBody'));
 
             tbody.appendChild(tr);
         });
@@ -441,7 +443,8 @@
                 var tr = document.createElement('tr');
                 opts.fields.forEach(function (f) {
                     var td = document.createElement('td');
-                    td.textContent = c[f.key];
+                    var value = c[f.key];
+                    td.textContent = f.format ? f.format(value) : value;
                     tr.appendChild(td);
                 });
                 var actionTd = document.createElement('td');
@@ -451,10 +454,32 @@
                     var headers = {};
                     var token = getProjectToken();
                     if (token) headers['X-Sink-Token'] = token;
-                    fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE', headers: headers})
+                    var query = 'path=' + encodeURIComponent(c.path);
+                    if (opts.extraDeleteParams) {
+                        var extra = opts.extraDeleteParams(c);
+                        Object.keys(extra).forEach(function (k) {
+                            if (extra[k] !== undefined) query += '&' + k + '=' + encodeURIComponent(extra[k]);
+                        });
+                    }
+                    fetch(opts.endpoint + '?' + query, {method: 'DELETE', headers: headers})
                         .then(refresh);
                 });
                 actionTd.appendChild(removeButton);
+
+                var loadButton = document.createElement('button');
+                loadButton.type = 'button';
+                loadButton.textContent = 'Load';
+                loadButton.addEventListener('click', function () {
+                    var errorEl = document.getElementById(opts.errorId);
+                    if (errorEl) errorEl.textContent = '';
+                    opts.fields.forEach(function (f) {
+                        var el = document.getElementById(f.id);
+                        var raw = c[f.key];
+                        el.value = f.load ? f.load(raw) : (raw === undefined || raw === null ? '' : String(raw));
+                    });
+                });
+                actionTd.appendChild(loadButton);
+
                 tr.appendChild(actionTd);
                 tbody.appendChild(tr);
             });
@@ -471,10 +496,15 @@
             var errorEl = document.getElementById(opts.errorId);
             if (errorEl) errorEl.textContent = '';
             var payload = {};
-            opts.fields.forEach(function (f) {
-                var raw = document.getElementById(f.id).value;
-                payload[f.key] = f.parse ? f.parse(raw) : raw.trim();
-            });
+            try {
+                opts.fields.forEach(function (f) {
+                    var raw = document.getElementById(f.id).value;
+                    payload[f.key] = f.parse ? f.parse(raw) : raw.trim();
+                });
+            } catch (err) {
+                if (errorEl) errorEl.textContent = err.message || 'invalid input';
+                return;
+            }
             var headers = {'Content-Type': 'application/json'};
             var token = getProjectToken();
             if (token) headers['X-Sink-Token'] = token;
@@ -497,9 +527,10 @@
         });
 
         refresh();
+        return {refresh: refresh};
     }
 
-    wireConfigSection({
+    var latencySection = wireConfigSection({
         endpoint: '/sink/config/latency',
         formId: 'latency-form',
         tbodyId: 'latency-body',
@@ -511,7 +542,7 @@
         ],
     });
 
-    wireConfigSection({
+    var failureSection = wireConfigSection({
         endpoint: '/sink/config/failure',
         formId: 'failure-form',
         tbodyId: 'failure-body',
@@ -523,6 +554,135 @@
             {id: 'failure-status', key: 'statusCode', parse: Number},
         ],
     });
+
+    function parseOptionalJson(raw, label) {
+        if (!raw || !raw.trim()) return undefined;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            throw new Error(label + ' must be valid JSON');
+        }
+    }
+
+    wireConfigSection({
+        endpoint: '/sink/config/response',
+        formId: 'response-template-form',
+        tbodyId: 'response-template-list-body',
+        errorId: 'response-template-form-error',
+        emptyText: 'no response templates',
+        extraDeleteParams: function (c) { return {method: c.method}; },
+        fields: [
+            {id: 'response-template-path', key: 'path'},
+            {
+                id: 'response-template-method',
+                key: 'method',
+                parse: function (raw) { return raw || undefined; },
+                format: function (v) { return v || 'Any'; },
+            },
+            {id: 'response-template-status', key: 'statusCode', parse: Number},
+            {
+                id: 'response-template-headers',
+                key: 'headers',
+                parse: function (raw) { return parseOptionalJson(raw, 'headers'); },
+                format: function (v) { return v ? JSON.stringify(v) : '--'; },
+                load: function (v) { return v === undefined ? '' : JSON.stringify(v, null, 2); },
+            },
+            {
+                id: 'response-template-body-input',
+                key: 'body',
+                parse: function (raw) { return parseOptionalJson(raw, 'body'); },
+                format: function (v) { return v === undefined ? '--' : JSON.stringify(v); },
+                load: function (v) { return v === undefined ? '' : JSON.stringify(v, null, 2); },
+            },
+        ],
+    });
+
+    var CHAOS_PRESETS = {
+        'flaky-network': {label: 'Flaky network', jitterMs: 500, rate: 0.15, statusCode: 503},
+        'slow-db': {label: 'Slow DB', jitterMs: 4000, rate: 0.05, statusCode: 504},
+        'intermittent-5xx': {label: 'Intermittent 5xx', jitterMs: 0, rate: 0.3, statusCode: 500},
+    };
+
+    document.querySelectorAll('.chaos-preset').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var preset = CHAOS_PRESETS[button.dataset.preset];
+            var pathInput = document.getElementById('chaos-preset-path');
+            var errorEl = document.getElementById('chaos-preset-error');
+            var path = pathInput.value.trim();
+            if (errorEl) errorEl.textContent = '';
+            if (!path) {
+                if (errorEl) errorEl.textContent = 'path is required';
+                return;
+            }
+            var token = getProjectToken();
+            var headers = {'Content-Type': 'application/json'};
+            if (token) headers['X-Sink-Token'] = token;
+
+            var original = button.textContent;
+            button.textContent = 'Applying...';
+            button.disabled = true;
+
+            var requests = [
+                fetch('/sink/config/latency', {method: 'POST', headers: headers, body: JSON.stringify({path: path, jitterMs: preset.jitterMs})}),
+                fetch('/sink/config/failure', {method: 'POST', headers: headers, body: JSON.stringify({path: path, rate: preset.rate, statusCode: preset.statusCode})}),
+            ];
+
+            Promise.all(requests).then(function (responses) {
+                var failed = responses.find(function (r) { return !r.ok; });
+                if (failed) {
+                    return failed.json().then(function (body) {
+                        throw new Error(body.error || 'request failed');
+                    });
+                }
+                latencySection.refresh();
+                failureSection.refresh();
+            }).catch(function (err) {
+                if (errorEl) errorEl.textContent = err.message;
+            }).then(function () {
+                button.textContent = original;
+                button.disabled = false;
+            });
+        });
+    });
+
+    document.querySelectorAll('.curl-test').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var method = button.dataset.method;
+            var path = button.dataset.path;
+            var body = button.dataset.body;
+
+            var original = button.textContent;
+            button.textContent = 'Sending...';
+            button.disabled = true;
+
+            var opts = {method: method};
+            if (body) {
+                opts.headers = {'Content-Type': 'application/json'};
+                opts.body = body;
+            }
+
+            fetch(path, opts).catch(function () {}).then(function () {
+                button.textContent = 'Sent! See Packet Inspection ↓';
+                setTimeout(function () {
+                    button.textContent = original;
+                    button.disabled = false;
+                }, 1500);
+            });
+        });
+    });
+
+    var dockerCmdCopy = document.getElementById('docker-cmd-copy');
+    if (dockerCmdCopy) {
+        dockerCmdCopy.addEventListener('click', function () {
+            var text = document.getElementById('docker-cmd').textContent.trim();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).catch(function () {});
+            }
+            var original = dockerCmdCopy.textContent;
+            dockerCmdCopy.textContent = '✅';
+            setTimeout(function () { dockerCmdCopy.textContent = original; }, 1200);
+        });
+    }
 
     update();
     setInterval(update, POLL_INTERVAL_MS);
