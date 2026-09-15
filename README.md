@@ -8,23 +8,24 @@ Docker:  `docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:m
 
 Live instance: [http-sink.jecklgamis.com](https://http-sink.jecklgamis.com)
 
-What's In The Box?
+## What's In The Box?
 
-* `GET|POST|PUT|...  /sink` and `/sink/*` — echoes method, path, headers, body, query args, and origin IP as JSON (httpbin-style)
-* httpbin-style utility endpoints: `/sink/headers`, `/sink/ip`, `/sink/user-agent`, `/sink/uuid`, `/sink/status/:code`, `/sink/delay/:seconds`, `/sink/redirect/:n`, `/sink/response-headers`, `/sink/stream/:n`, `/sink/bytes/:n`
-* Live dashboard at `/` — RPS sparkline, RPS by path & method, last-10-requests inspector (freeze/clear, click-to-expand request **and response** headers/body), a reference table of every `/sink` endpoint with one-click "Test it!" buttons, and the config forms below, all polling `/sink/stats`
-* Per-path **latency simulation** (`/sink/config/latency`) — add a random 0..N ms delay before responding
-* Per-path **failure injection** (`/sink/config/failure`) — return a configured status code for a configured fraction of requests
-* Per-path (optionally per-method) **response templates** (`/sink/config/response`) — return a fixed status code/headers/JSON body instead of the normal echo, for lightweight mocking
-* **Chaos presets** — one-click "Flaky network" / "Slow DB" / "Intermittent 5xx" buttons that apply canned latency+failure combos to a path
-* Project/config state (projects, latency, failure, response-template configs) **persists to disk** (JSON files under `SINK_DATA_DIR`, default `./data`) so it survives a process restart
-* [ExpressJS](https://expressjs.com/) app, Alpine [Docker](https://docker.io) image, HTTP and HTTPS listeners (self-signed certs)
-* /build-info endpoint (returns Git branch, version, and build time info)
-* /probe/ready, /probe/live endpoints for Kubernetes deployment
-* Metrics: Statsd (response time, 2xx/3xx/4xx/5xx counters) and a Prometheus-format `/metrics` endpoint (request count/duration histograms, Node.js process metrics)
-* [Kubernetes](https://kubernetes.io/) Helm chart 
+**Core**
+* `/sink` and `/sink/*` — echoes method, path, headers, body, query args, and origin IP (httpbin-style)
+* httpbin-style utilities — `/sink/headers`, `/ip`, `/user-agent`, `/uuid`, `/status/:code`, `/delay/:seconds`, `/redirect/:n`, `/response-headers`, `/stream/:n`, `/bytes/:n`
+* Live dashboard at `/` — traffic stats, endpoint reference with one-click testing, request/response inspector, all config forms
 
-Have fun and hope you find this useful!
+**Chaos & mocking**
+* Per-path latency simulation and failure injection, plus one-click chaos presets (flaky network, slow DB, intermittent 5xx)
+* Per-path (optionally per-method) response templates for lightweight mocking
+* Config persists to disk, survives a restart
+
+**Ops**
+* `/build-info`, `/probe/ready`, `/probe/live`
+* StatsD metrics + a Prometheus `/metrics` endpoint
+* HTTP + HTTPS listeners, Alpine Docker image, Kubernetes Helm chart
+
+See `CLAUDE.md` for full endpoint/config details.
 
 ## Practical Uses
 
