@@ -29,12 +29,12 @@ See `CLAUDE.md` for full endpoint/config details.
 
 ## Practical Uses
 
-* **Debugging what a client actually sends** — point any HTTP client (webhook sender, API integration, mobile app, curl script) at `/sink/...` and see the exact method, headers, body, and query args it produced, live, in the Packet Inspection panel — no need to stand up a real backend or add logging to debug "why isn't my webhook payload what I expect."
-* **Testing client resilience without touching real infrastructure** — the latency/failure injection (or a one-click chaos preset) lets you simulate a slow or flaky downstream service (500s, timeouts, jitter) to verify your client's retry/backoff/timeout logic actually works, without needing chaos-engineering tooling like Toxiproxy or modifying a real service.
-* **Lightweight mocking** — response templates let a path return a fixed status/headers/JSON body instead of the echo, so you can stand in for a not-yet-built or currently-unavailable endpoint without writing a real mock server.
-* **Load-testing target** — since it's a lightweight sink that just echoes and records stats, it's a safe place to point Gatling/load-gen scripts at and watch RPS/traffic patterns live instead of guessing from logs.
-* **Multi-user/multi-scenario safety** — project-token namespacing means multiple people or test scenarios can share one deployed instance without one person's chaos config breaking another's traffic.
-* **Zero-setup webhook/callback receiver** — anything that needs to POST somewhere and you just want to confirm it fired and see the payload (third-party webhooks, CI notifications, IoT devices) can point at it with no auth, no schema, no setup.
+* **Debug what a client actually sends** — headers, body, query args, live, in Packet Inspection
+* **Test client resilience** — inject latency/failures (or use a chaos preset) without touching real infra
+* **Lightweight mocking** — stand in for a not-yet-built or unavailable endpoint with a response template
+* **Load-testing target** — a safe place to point Gatling/load-gen scripts at and watch traffic live
+* **Multi-user safety** — project-token namespacing so shared-instance configs don't collide
+* **Zero-setup webhook/callback receiver** — confirm something fired and see the payload, no auth or setup
 
 ## Requirements
 
