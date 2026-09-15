@@ -44,6 +44,7 @@ Integration tests require SSL certificates — run `./generate-ssl-certs.sh` if 
 `GET /metrics` (registered directly in `app.js`, not its own router file) exposes Prometheus-format metrics via `middleware/prometheus_metrics.js` — request count/duration histograms labeled by method, route, and status code, plus Node.js default process metrics. This is separate from and in addition to the existing StatsD emission (`middleware/statsd/*`); it doesn't replace it. The `route` label buckets by top-level path segment only (e.g. everything under `/sink/*` becomes `route="/sink"`) to keep cardinality bounded, since `/sink` accepts arbitrary echoed subpaths.
 
 **Middleware** (`middleware/`):
+- `rate-limit.js` — global fixed-window rate limiter (all routes), returns `429` past the limit; default 1000 req/s, overridable via `RATE_LIMIT_RPS` env var
 - `statsd/timing.js` — records request duration per endpoint (StatsD)
 - `statsd/status_code.js` — counts responses by status class (2xx/3xx/4xx/5xx) per endpoint (StatsD)
 - `prometheus_metrics.js` — `@prometheus-io/client`-based request duration histogram and request counter, labeled by method/route/status code (route bucketed to top-level path segment), plus Node.js default process metrics; backs `GET /metrics`

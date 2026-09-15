@@ -1,5 +1,6 @@
 const WINDOW_MS = 1000;
-const LIMIT = 1000;
+const DEFAULT_LIMIT = 1000;
+const LIMIT = Number(process.env.RATE_LIMIT_RPS) > 0 ? Number(process.env.RATE_LIMIT_RPS) : DEFAULT_LIMIT;
 
 let windowStart = Date.now();
 let count = 0;

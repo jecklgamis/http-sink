@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/jecklgamis/http-sink/actions/workflows/build.yaml/badge.svg)](https://github.com/jecklgamis/http-sink/actions/workflows/build.yaml)
 
-A request sink for testing HTTP clients: `/sink` accepts any method or subpath, echoes back what it received, and lets you simulate latency and failures per path while watching live traffic stats on a built-in dashboard.
+A request sink for testing HTTP clients: `/sink` accepts any method or subpath, echoes back what it received, lets you simulate latency and failures (or mock a response entirely) per path, and watch live traffic stats on a built-in dashboard.
 
 Docker:  `docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main`
 
