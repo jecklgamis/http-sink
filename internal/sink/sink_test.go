@@ -137,6 +137,9 @@ func TestStatsLatencyPercentiles(t *testing.T) {
 		}
 	}
 	near("p50", lat.All.P50Ms, 2)
+	near("p75", lat.All.P75Ms, 2)
+	near("p90", lat.All.P90Ms, 2)
+	near("p95", lat.All.P95Ms, 2)
 	near("max", lat.All.MaxMs, 500)
 	if lat.All.P99Ms > 3 { // 99th of 100 samples is still a fast one
 		t.Fatalf("p99 = %v, want ~2", lat.All.P99Ms)

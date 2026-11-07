@@ -9,7 +9,6 @@
                 rows.push({
                     path: path,
                     method: method,
-                    count: methods[method],
                     rps: rpsByPathAndMethod[path][method],
                 });
             });
@@ -21,7 +20,7 @@
         if (rows.length === 0) {
             var emptyRow = document.createElement('tr');
             var emptyCell = document.createElement('td');
-            emptyCell.colSpan = 4;
+            emptyCell.colSpan = 3;
             emptyCell.textContent = 'no traffic';
             emptyRow.appendChild(emptyCell);
             tbody.appendChild(emptyRow);
@@ -29,7 +28,7 @@
         }
         rows.forEach(function (row) {
             var tr = document.createElement('tr');
-            [row.path, row.method, row.rps, row.count].forEach(function (value) {
+            [row.path, row.method, row.rps].forEach(function (value) {
                 var td = document.createElement('td');
                 td.textContent = value;
                 tr.appendChild(td);
@@ -46,7 +45,7 @@
         if (!latency.all.count) {
             var emptyRow = document.createElement('tr');
             var emptyCell = document.createElement('td');
-            emptyCell.colSpan = 7;
+            emptyCell.colSpan = 8;
             emptyCell.textContent = 'no traffic';
             emptyRow.appendChild(emptyCell);
             tbody.appendChild(emptyRow);
@@ -61,7 +60,7 @@
         rows.forEach(function (row) {
             var l = row[1];
             var tr = document.createElement('tr');
-            [row[0], l.count, l.p50Ms, l.p90Ms, l.p99Ms, l.p999Ms, l.maxMs].forEach(function (value) {
+            [row[0], l.count, l.p50Ms, l.p75Ms, l.p90Ms, l.p95Ms, l.p99Ms, l.maxMs].forEach(function (value) {
                 var td = document.createElement('td');
                 td.textContent = value;
                 tr.appendChild(td);

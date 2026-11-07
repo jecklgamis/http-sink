@@ -36,6 +36,9 @@ type Options struct {
 	BuildInfo buildinfo.Info
 	// Development adds error details to error pages.
 	Development bool
+	// MaxDelayedRequests bounds how many requests may be sleeping on an injected
+	// delay at once; defaults to DefaultMaxDelayedRequests.
+	MaxDelayedRequests int
 }
 
 // Server is the http-sink application; it implements http.Handler.
@@ -48,6 +51,8 @@ type Server struct {
 	tmpl    *template.Template
 	static  fs.FS
 	handler http.Handler
+	// delaySlots is a counting semaphore for in-flight delayed requests.
+	delaySlots chan struct{}
 }
 
 // New builds a Server with fresh in-memory state.
@@ -55,14 +60,18 @@ func New(opts Options) *Server {
 	if opts.RateLimiter == nil {
 		opts.RateLimiter = ratelimit.New(DefaultRateLimit, time.Second)
 	}
+	if opts.MaxDelayedRequests <= 0 {
+		opts.MaxDelayedRequests = DefaultMaxDelayedRequests
+	}
 	s := &Server{
-		opts:    opts,
-		stats:   sink.NewStats(),
-		metrics: sink.NewMetrics(),
-		latency: sink.NewLatency(),
-		failure: sink.NewFailure(),
-		tmpl:    template.Must(template.ParseFS(web.Templates, "templates/*.html")),
-		static:  web.Public(),
+		delaySlots: make(chan struct{}, opts.MaxDelayedRequests),
+		opts:       opts,
+		stats:      sink.NewStats(),
+		metrics:    sink.NewMetrics(),
+		latency:    sink.NewLatency(),
+		failure:    sink.NewFailure(),
+		tmpl:       template.Must(template.ParseFS(web.Templates, "templates/*.html")),
+		static:     web.Public(),
 	}
 	// Outermost first: this order mirrors the request flow.
 	s.handler = chain(http.HandlerFunc(s.route),

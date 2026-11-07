@@ -15,12 +15,12 @@
     <div id="rps-sparkline-axis"><span>-30s</span><span>-15s</span><span>now</span></div>
   </div>
   <table id="sink-breakdown">
-    <thead><tr><th>Path</th><th>Method</th><th>RPS</th><th>Count</th></tr></thead>
+    <thead><tr><th>Path</th><th>Method</th><th>RPS</th></tr></thead>
     <tbody id="breakdown-body"></tbody>
   </table>
   <h3>Response time <span class="section-info" id="response-time-window"></span></h3>
   <table id="sink-response-time">
-    <thead><tr><th>Path</th><th>Count</th><th>p50 (ms)</th><th>p90 (ms)</th><th>p99 (ms)</th><th>p99.9 (ms)</th><th>Max (ms)</th></tr></thead>
+    <thead><tr><th>Path</th><th>Count</th><th>p50 (ms)</th><th>p75 (ms)</th><th>p90 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Max (ms)</th></tr></thead>
     <tbody id="response-time-body"></tbody>
   </table>
 </div>
@@ -36,7 +36,7 @@
 </div>
 <div id="latency-section">
   <h3>Latency Simulation</h3>
-  <p class="section-info">Configure a path under /sink/ and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Config is shared by everyone using this instance, so pick a path of your own. It expires after 1 hour.</p>
+  <p class="section-info">Configure a path under /sink/ and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Config is shared by everyone using this instance, so pick a path of your own. It expires after 1 hour. To delay a single request instead, add <code>?sinkDelay=250ms</code> (or a range like <code>50ms-300ms</code>, max 10s) to the URL, or send an <code>X-Sink-Delay</code> header.</p>
   <form id="latency-form">
     <input id="latency-path" type="text" placeholder="/sink/my-scenario" required>
     <input id="latency-jitter" type="number" placeholder="jitter ms" min="0" required>
@@ -50,7 +50,7 @@
 </div>
 <div id="failure-section">
   <h3>Failure Injection</h3>
-  <p class="section-info">Configure a path under /sink/, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Config is shared by everyone using this instance, so pick a path of your own. It expires after 1 hour.</p>
+  <p class="section-info">Configure a path under /sink/, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Config is shared by everyone using this instance, so pick a path of your own. It expires after 1 hour. To fail a single request instead, add <code>?sinkStatus=503</code> (and optionally <code>&amp;sinkFailRate=0.3</code>) to the URL, or send <code>X-Sink-Status</code> / <code>X-Sink-Fail-Rate</code> headers.</p>
   <form id="failure-form">
     <input id="failure-path" type="text" placeholder="/sink/my-scenario" list="failure-path-list" required>
     <datalist id="failure-path-list"></datalist>

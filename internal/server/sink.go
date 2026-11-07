@@ -158,7 +158,26 @@ type injectedFailureResponse struct {
 // echo is the sink itself: after any configured delay and failure roll for
 // the exact path, it reflects the request back.
 func (s *Server) echo(w http.ResponseWriter, r *http.Request, path string) {
-	if delay := s.latency.DelayFor(path); delay > 0 {
+	inj, err := parseInjection(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// A request's own settings replace the path config for that request.
+	var delay time.Duration
+	if inj.hasDelay {
+		delay = inj.delay()
+	} else {
+		delay = s.latency.DelayFor(path)
+	}
+	if delay > 0 {
+		if !s.acquireDelaySlot() {
+			writeError(w, http.StatusTooManyRequests, errTooManyDelayed)
+			return
+		}
+		defer s.releaseDelaySlot()
+		w.Header().Set(headerInjectedDelay, formatMs(delay))
 		t := time.NewTimer(delay)
 		select {
 		case <-t.C:
@@ -167,7 +186,14 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request, path string) {
 			return // client went away
 		}
 	}
-	if code := s.failure.StatusCodeFor(path); code != 0 {
+
+	var code int
+	if inj.hasFailure {
+		code = inj.failureStatus()
+	} else {
+		code = s.failure.StatusCodeFor(path)
+	}
+	if code != 0 {
 		writeJSON(w, code, injectedFailureResponse{
 			Method: r.Method, Path: path, InjectedFailure: true, StatusCode: code,
 		})

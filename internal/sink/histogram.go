@@ -37,9 +37,10 @@ type LatencySummary struct {
 	MinMs  float64 `json:"minMs"`
 	MeanMs float64 `json:"meanMs"`
 	P50Ms  float64 `json:"p50Ms"`
+	P75Ms  float64 `json:"p75Ms"`
 	P90Ms  float64 `json:"p90Ms"`
+	P95Ms  float64 `json:"p95Ms"`
 	P99Ms  float64 `json:"p99Ms"`
-	P999Ms float64 `json:"p999Ms"`
 	MaxMs  float64 `json:"maxMs"`
 }
 
@@ -54,9 +55,10 @@ func summarize(h *hdrhistogram.Histogram) LatencySummary {
 		MinMs:  usToMs(float64(h.Min())),
 		MeanMs: usToMs(h.Mean()),
 		P50Ms:  usToMs(float64(h.ValueAtQuantile(50))),
+		P75Ms:  usToMs(float64(h.ValueAtQuantile(75))),
 		P90Ms:  usToMs(float64(h.ValueAtQuantile(90))),
+		P95Ms:  usToMs(float64(h.ValueAtQuantile(95))),
 		P99Ms:  usToMs(float64(h.ValueAtQuantile(99))),
-		P999Ms: usToMs(float64(h.ValueAtQuantile(99.9))),
 		MaxMs:  usToMs(float64(h.Max())),
 	}
 }

@@ -33,18 +33,20 @@ Go, standard library plus one dependency: `github.com/HdrHistogram/hdrhistogram-
 - `server.go` — `New`, the middleware chain order, and `route` (a manual dispatcher on the raw request path, not `http.ServeMux`, so odd paths like `//` or `/..` reach the sink unmodified). Serves `GET /` (dashboard), `/build-info`, `/probe/live`, `/probe/ready`, and `/metrics` (Prometheus text format).
 - `sink.go` — everything under `/sink`:
   - `ANY /sink` and `ANY /sink/*` — echoes method/path/url/args/headers/body/origin (httpbin-style) after applying any configured latency, then failure injection, for the *exact* path
+  - per-request injection (`inject.go`): `sinkDelay`/`sinkStatus`/`sinkFailRate` query params or `X-Sink-Delay`/`X-Sink-Status`/`X-Sink-Fail-Rate` headers (query wins). Prefixed so ordinary client params are never interpreted. Delay max 10s (`50ms-300ms` ranges supported); invalid values → 400; a request's settings replace the path config for that request; in-flight delayed requests are bounded by a semaphore (`MaxDelayedRequests`, default 500 → 429)
   - `GET /sink/stats` — traffic stats (polled by the dashboard every second)
   - `DELETE /sink/recent` — clears the "Packet Inspection" (last 10 requests) buffer
   - `GET/POST/DELETE /sink/config/latency` and `/sink/config/failure` — per-path config, open to everyone (no auth); the path must be a subpath under `/sink/`. Intended for a shared demo instance; for isolation, run one deployment per tenant. Configs expire 1h after they were last set and each type is capped at 200 entries (POST returns 429 at the cap)
   - the `recordSinkStats` middleware, which records every non-control-plane `/sink` request
 - `middleware.go` — rate limit (global 1000 req/s → 429), combined-format access log, embedded static assets, StatsD metrics (`<url>.duration|hits|2xx..5xx`, `/` → `.`), plus the response `recorder`.
+- `inject.go` — parsing/validation of per-request injection and the delayed-request semaphore.
 - `body.go` / `request.go` — JSON (objects/arrays only) and urlencoded body parsing (100kb limit, other content types are left unparsed), and request helpers (client IP honouring `X-Forwarded-For`, lower-cased header map, etc.).
 
 Middleware order (outermost first): rate limit → access log → body parse → static assets → statsd → sink stats → route. Static assets are served before statsd/stats on purpose, so they are not counted.
 
 **`internal/sink`** — in-memory state, each type guarded by a mutex:
 - `Stats` — 1s-window RPS/counts by path & method, 30-bucket RPS history for the sparkline, and a capped 10-entry "recent requests" buffer. Lightweight per-request samples are kept separately from the full entries so headers/bodies are only retained for the recent buffer.
-- `histogram.go` / `Stats.Compute` — response-time percentiles (p50/p90/p99/p99.9/max, in ms) over the trailing 30s, overall and for the 10 busiest paths, returned as `latency` in `/sink/stats`. HDR histograms (microsecond resolution) are built on demand from the retained samples, so per-path state never accumulates.
+- `histogram.go` / `Stats.Compute` — response-time percentiles (p50/p75/p90/p95/p99/max, in ms) over the trailing 30s, overall and for the 10 busiest paths, returned as `latency` in `/sink/stats`. HDR histograms (microsecond resolution) are built on demand from the retained samples, so per-path state never accumulates.
 - `Metrics` — lifetime counters (`http_sink_requests_total{method,code}`) and an HDR histogram of response times, rendered by `/metrics` as `http_sink_request_duration_seconds` (fixed Prometheus buckets derived from the HDR distribution). Only `/sink` data traffic is observed, same as the dashboard stats.
 - `configstore.go` — generic capped (`MaxConfigs`=200) path → value store with a 1h `ConfigTTL`; expiry is lazy (checked on read/list/set), no background goroutine. Backs `Latency` and `Failure`.
 - `Latency` — `path → jitterMs`; `DelayFor(path)` returns a random `0..jitterMs` delay.
