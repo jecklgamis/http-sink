@@ -49,6 +49,7 @@ Middleware order (outermost first): rate limit → access log → body parse →
 - `histogram.go` / `Stats.Compute` — response-time percentiles (p50/p75/p90/p95/p99/max, in ms) over the trailing 30s, overall and for the 10 busiest paths, returned as `latency` in `/sink/stats`. HDR histograms (microsecond resolution) are built on demand from the retained samples, so per-path state never accumulates.
 - `Metrics` — lifetime counters (`http_sink_requests_total{method,code}`) and an HDR histogram of response times, rendered by `/metrics` as `http_sink_request_duration_seconds` (fixed Prometheus buckets derived from the HDR distribution). Only `/sink` data traffic is observed, same as the dashboard stats.
 - `configstore.go` — generic capped (`MaxConfigs`=200) path → value store with a 1h `ConfigTTL`; expiry is lazy (checked on read/list/set), no background goroutine. Backs `Latency` and `Failure`.
+- `persist.go` — `Persistence` saves only the latency/failure configs to `SINK_DATA_DIR/configs.json` (default `./data`; empty string disables): atomic temp-file + rename writes, ~250ms debounce driven by the stores' `onChange` hook, flush on `Close`, original expiry preserved on restore, expired entries dropped, corrupt file moved to `.corrupt`. Enabled via `Server.EnablePersistence`; stats/metrics are intentionally ephemeral. In Docker it's the `/data` volume.
 - `Latency` — `path → jitterMs`; `DelayFor(path)` returns a random `0..jitterMs` delay.
 - `Failure` — `path → {rate, statusCode}`; `StatusCodeFor(path)` rolls the dice per request.
 

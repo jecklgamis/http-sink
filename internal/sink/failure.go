@@ -3,6 +3,7 @@ package sink
 import (
 	"math/rand/v2"
 	"sort"
+	"time"
 )
 
 // FailureConfig is a per-path failure injection setting.
@@ -36,6 +37,11 @@ func (f *Failure) Set(path string, rate float64, statusCode int) (FailureConfig,
 }
 
 func (f *Failure) Remove(path string) { f.store.remove(path) }
+
+// restore re-adds a persisted config, keeping its original expiry.
+func (f *Failure) restore(c FailureConfig) bool {
+	return f.store.restore(c.Path, failureRule{c.Rate, c.StatusCode}, time.UnixMilli(c.ExpiresAt))
+}
 
 // List returns all live configs sorted by path (never nil).
 func (f *Failure) List() []FailureConfig {

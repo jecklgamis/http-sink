@@ -52,7 +52,8 @@ type Server struct {
 	static  fs.FS
 	handler http.Handler
 	// delaySlots is a counting semaphore for in-flight delayed requests.
-	delaySlots chan struct{}
+	delaySlots  chan struct{}
+	persistence *sink.Persistence
 }
 
 // New builds a Server with fresh in-memory state.
@@ -83,6 +84,26 @@ func New(opts Options) *Server {
 		s.recordSinkStats,
 	)
 	return s
+}
+
+// EnablePersistence restores the latency and failure configs from dir and keeps
+// the files up to date as they change. Call Close to flush on shutdown.
+func (s *Server) EnablePersistence(dir string) error {
+	p, err := sink.OpenPersistence(dir, s.latency, s.failure)
+	if err != nil {
+		return err
+	}
+	s.persistence = p
+	return nil
+}
+
+// Close flushes any pending persisted state. It is safe to call without
+// EnablePersistence.
+func (s *Server) Close() error {
+	if s.persistence == nil {
+		return nil
+	}
+	return s.persistence.Close()
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.handler.ServeHTTP(w, r) }

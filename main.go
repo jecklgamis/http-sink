@@ -21,6 +21,7 @@ import (
 
 const (
 	defaultHTTPPort = "38080"
+	defaultDataDir  = "data"
 	httpsAddr       = ":8443"
 	certFile        = "server.crt"
 	keyFile         = "server.key"
@@ -39,6 +40,21 @@ func main() {
 		BuildInfo:   buildinfo.Data,
 		Development: os.Getenv("APP_ENV") == "development",
 	})
+
+	// SINK_DATA_DIR holds the persisted latency/failure configs. Unset uses
+	// ./data; set it to an empty string to disable persistence.
+	dataDir, set := os.LookupEnv("SINK_DATA_DIR")
+	if !set {
+		dataDir = defaultDataDir
+	}
+	if dataDir != "" {
+		if err := app.EnablePersistence(dataDir); err != nil {
+			log.Fatalf("persistence: %v", err)
+		}
+		log.Printf("persisting latency/failure configs in %s", dataDir)
+	} else {
+		log.Printf("persistence disabled (SINK_DATA_DIR is empty)")
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -91,6 +107,7 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}
 	wg.Wait()
+	_ = app.Close() // flush persisted configs
 	_ = statsdClient.Close()
 	if failed {
 		os.Exit(1)

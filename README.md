@@ -68,6 +68,14 @@ curl -X DELETE 'localhost:38080/sink/config/latency?path=/sink/team-a/checkout'
 
 Path config is shared by everyone using the instance. Each config expires after 1 hour (setting it again refreshes it), and at most 200 of each type can exist (the API returns `429` beyond that).
 
+#### Persistence
+
+Path configs are saved to `configs.json` in the data directory and restored on startup, with their original expiry (entries that expired while the app was down are dropped). Traffic stats, recent requests and metrics are deliberately not persisted.
+
+* The directory is `SINK_DATA_DIR`, default `./data`. Set it to an empty string to disable persistence.
+* Writes are atomic and debounced (about 250ms), and flushed on shutdown. A corrupt file is moved aside to `configs.json.corrupt` and the app starts empty. The app refuses to start if the directory isn't writable.
+* In Docker the directory is the `/data` volume, so mount a volume to keep configs across container replacement: `docker run -v http-sink-data:/data ...` (`make run` does this). It is a single-instance file, so replicas don't share configs.
+
 ## Requirements
 
 * [Go](https://go.dev/doc/install) 1.26+

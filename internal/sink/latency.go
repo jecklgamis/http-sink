@@ -33,6 +33,11 @@ func (l *Latency) Set(path string, jitterMs float64) (LatencyConfig, error) {
 
 func (l *Latency) Remove(path string) { l.store.remove(path) }
 
+// restore re-adds a persisted config, keeping its original expiry.
+func (l *Latency) restore(c LatencyConfig) bool {
+	return l.store.restore(c.Path, c.JitterMs, time.UnixMilli(c.ExpiresAt))
+}
+
 // List returns all live configs sorted by path (never nil).
 func (l *Latency) List() []LatencyConfig {
 	snap := l.store.snapshot()

@@ -30,6 +30,9 @@ type configStore[T any] struct {
 	now   func() time.Time
 	max   int
 	ttl   time.Duration
+	// onChange, if set, is called after every successful set or remove, with
+	// no locks held. It must not block (it only signals the persister).
+	onChange func()
 }
 
 func newConfigStore[T any](max int, ttl time.Duration) *configStore[T] {
@@ -39,6 +42,14 @@ func newConfigStore[T any](max int, ttl time.Duration) *configStore[T] {
 // set stores v for path and returns its expiry. Updating an existing path
 // always succeeds and refreshes its TTL; adding a new one fails at the cap.
 func (c *configStore[T]) set(path string, v T) (time.Time, error) {
+	exp, err := c.setLocked(path, v)
+	if err == nil && c.onChange != nil {
+		c.onChange()
+	}
+	return exp, err
+}
+
+func (c *configStore[T]) setLocked(path string, v T) (time.Time, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := c.now()
@@ -70,8 +81,27 @@ func (c *configStore[T]) get(path string) (T, bool) {
 
 func (c *configStore[T]) remove(path string) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	_, existed := c.items[path]
 	delete(c.items, path)
+	c.mu.Unlock()
+	if existed && c.onChange != nil {
+		c.onChange()
+	}
+}
+
+// restore loads an entry with a known expiry (used when reading persisted
+// state). It skips entries that already expired and respects the size cap.
+func (c *configStore[T]) restore(path string, v T, expires time.Time) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !expires.After(c.now()) {
+		return false
+	}
+	if _, exists := c.items[path]; !exists && len(c.items) >= c.max {
+		return false
+	}
+	c.items[path] = storeEntry[T]{val: v, expires: expires}
+	return true
 }
 
 // snapshot returns the live (unexpired) entries and drops expired ones.

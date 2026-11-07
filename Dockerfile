@@ -8,11 +8,15 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/http-sink .
 FROM alpine:3.22
 LABEL org.opencontainers.image.authors="jecklgamis@gmail.com"
 
-RUN apk add --no-cache curl && addgroup -S app && adduser -S app -G app
+RUN apk add --no-cache curl && addgroup -S app && adduser -S app -G app \
+    && mkdir /data && chown app:app /data
 
 WORKDIR /app
 COPY --from=build /out/http-sink .
 COPY --chown=app:app server.crt server.key ./
+
+ENV SINK_DATA_DIR=/data
+VOLUME /data
 
 USER app
 EXPOSE 38080
