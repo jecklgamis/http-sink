@@ -1,0 +1,133 @@
+{{template "head" .}}
+<h1>{{.Title}}</h1>
+<p class="tagline">Relax, sink it.</p>
+<p>{{.Message}}</p>
+<div id="live-stats-section">
+  <h2>Live Traffic Stats</h2>
+  <div id="rps-sparkline-wrap">
+    <div id="rps-sparkline-row">
+      <div id="rps-sparkline-yaxis"><span id="rps-yaxis-max"></span><span id="rps-yaxis-75"></span><span id="rps-yaxis-50"></span><span id="rps-yaxis-25"></span><span>0</span></div>
+      <svg id="rps-sparkline" viewBox="0 0 300 100" preserveAspectRatio="none">
+        <g id="rps-sparkline-grid"></g>
+        <polyline id="rps-sparkline-line" points="" fill="none" stroke="#b2182b" stroke-width="2" vector-effect="non-scaling-stroke"></polyline>
+      </svg>
+    </div>
+    <div id="rps-sparkline-axis"><span>-30s</span><span>-15s</span><span>now</span></div>
+  </div>
+  <table id="sink-breakdown">
+    <thead><tr><th>Path</th><th>Method</th><th>RPS</th><th>Count</th></tr></thead>
+    <tbody id="breakdown-body"></tbody>
+  </table>
+  <h3>Response time <span class="section-info" id="response-time-window"></span></h3>
+  <table id="sink-response-time">
+    <thead><tr><th>Path</th><th>Count</th><th>p50 (ms)</th><th>p90 (ms)</th><th>p99 (ms)</th><th>p99.9 (ms)</th><th>Max (ms)</th></tr></thead>
+    <tbody id="response-time-body"></tbody>
+  </table>
+</div>
+<div id="packet-inspection-section">
+  <h3>Packet Inspection</h3>
+  <button id="clear-recent">Clear</button>
+  <button id="freeze-recent">Freeze</button>
+  <table id="sink-recent">
+    <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Response time (ms)</th><th>Remote address</th><th>User agent</th><th>Headers</th><th>Body</th></tr></thead>
+    <tbody id="recent-body"></tbody>
+  </table>
+  <p class="stats-updated" id="stats-updated">updating...</p>
+</div>
+<div id="project-section">
+  <h3>Project</h3>
+  <div id="project-active" hidden>
+    <p>Active project: <strong id="project-active-name"></strong> &mdash; use path prefix <code id="project-path-prefix"></code></p>
+    <button id="project-forget">Delete project</button>
+  </div>
+  <p class="section-info">Latency/failure configs must live under /sink/&lt;project&gt;/... and require that project's token to create or remove, so your test paths can't collide with (or be broken by) anyone else's.</p>
+  <h4>Existing projects</h4>
+  <table id="sink-projects">
+    <thead><tr><th>Name</th><th>Created</th></tr></thead>
+    <tbody id="projects-body"></tbody>
+  </table>
+  <h4>Create</h4>
+  <p class="section-info">Claim a project name to get an API token, shown once.</p>
+  <form id="project-form">
+    <input id="project-name" type="text" placeholder="my-project" pattern="[a-zA-Z0-9_-]{1,64}" required>
+    <button type="submit">Create project</button>
+  </form>
+  <span class="form-error" id="project-form-error"></span>
+  <h4>Set</h4>
+  <p class="section-info">Already have a project and token from before (different browser, cleared storage)? Restore it here instead of creating a new one.</p>
+  <form id="project-restore-form">
+    <input id="project-restore-name" type="text" placeholder="my-project" required>
+    <input id="project-restore-token" type="text" placeholder="token" required>
+    <button type="submit">Set</button>
+  </form>
+  <span class="form-error" id="project-restore-form-error"></span>
+  <h4>Delete</h4>
+  <p class="section-info">Delete a project by name and token &mdash; frees the name and removes any latency/failure configs under it. Works even if it isn't the active project in this browser.</p>
+  <form id="project-delete-form">
+    <input id="project-delete-name" type="text" placeholder="my-project" required>
+    <input id="project-delete-token" type="text" placeholder="token" required>
+    <button type="submit">Delete project</button>
+  </form>
+  <span class="form-error" id="project-delete-form-error"></span>
+  <div id="project-token-reveal" hidden>
+    <p class="section-info">Save this token now &mdash; it will not be shown again.</p>
+    <input id="project-token" type="text" readonly>
+    <button id="project-token-copy">Copy</button>
+  </div>
+</div>
+<div id="latency-section">
+  <h3>Latency Simulation</h3>
+  <p class="section-info">Configure a path under your project and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Requires your project token.</p>
+  <form id="latency-form">
+    <input id="latency-path" type="text" placeholder="/sink/my-project/foo" required>
+    <input id="latency-jitter" type="number" placeholder="jitter ms" min="0" required>
+    <button type="submit">Add</button>
+  </form>
+  <span class="form-error" id="latency-form-error"></span>
+  <table id="sink-latency">
+    <thead><tr><th>Path</th><th>Jitter (ms)</th><th></th></tr></thead>
+    <tbody id="latency-body"></tbody>
+  </table>
+</div>
+<div id="failure-section">
+  <h3>Failure Injection</h3>
+  <p class="section-info">Configure a path under your project, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Requires your project token.</p>
+  <form id="failure-form">
+    <input id="failure-path" type="text" placeholder="/sink/my-project/foo" list="failure-path-list" required>
+    <datalist id="failure-path-list"></datalist>
+    <select id="failure-rate" required>
+      <option value="0.05">5%</option>
+      <option value="0.1">10%</option>
+      <option value="0.25">25%</option>
+      <option value="0.5" selected>50%</option>
+      <option value="0.75">75%</option>
+      <option value="1">100%</option>
+    </select>
+    <select id="failure-status" required>
+      <option value="400">400 Bad Request</option>
+      <option value="401">401 Unauthorized</option>
+      <option value="403">403 Forbidden</option>
+      <option value="404">404 Not Found</option>
+      <option value="408">408 Request Timeout</option>
+      <option value="429">429 Too Many Requests</option>
+      <option value="500" selected>500 Internal Server Error</option>
+      <option value="502">502 Bad Gateway</option>
+      <option value="503">503 Service Unavailable</option>
+      <option value="504">504 Gateway Timeout</option>
+    </select>
+    <button type="submit">Add</button>
+  </form>
+  <span class="form-error" id="failure-form-error"></span>
+  <table id="sink-failure">
+    <thead><tr><th>Path</th><th>Rate</th><th>Status code</th><th></th></tr></thead>
+    <tbody id="failure-body"></tbody>
+  </table>
+</div>
+<div id="about-section">
+  <h2>Project</h2>
+  <p><a href="https://github.com/jecklgamis/http-sink" target="_blank" rel="noopener">View on GitHub</a></p>
+  <h4>Run locally</h4>
+  <pre><code>docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main</code></pre>
+</div>
+<script src="/javascripts/sink-stats.js"></script>
+{{template "foot"}}

@@ -1,0 +1,5 @@
+{{template "head" .}}
+<h1>{{.Message}}</h1>
+{{if .Status}}<h2>{{.Status}}</h2>{{end}}
+{{if .Stack}}<pre>{{.Stack}}</pre>{{end}}
+{{template "foot"}}

@@ -12,7 +12,7 @@ What's In The Box?
 * Live dashboard at `/` — RPS sparkline, RPS by path & method, last-10-requests inspector (freeze/clear, click-to-expand headers/body), all polling `/sink/stats`
 * Per-path **latency simulation** (`/sink/config/latency`) — add a random 0..N ms delay before responding
 * Per-path **failure injection** (`/sink/config/failure`) — return a configured status code for a configured fraction of requests
-* [ExpressJS](https://expressjs.com/) app, Alpine [Docker](https://docker.io) image, HTTP and HTTPS listeners (self-signed certs)
+* [Go](https://go.dev) app, Alpine [Docker](https://docker.io) image, HTTP and HTTPS listeners (self-signed certs)
 * /build-info endpoint (returns Git branch, version, and build time info)
 * /probe/ready, /probe/live endpoints for Kubernetes deployment
 * Statsd metrics (response time, 2xx/3xx/4xx/5xx metrics)
@@ -30,7 +30,7 @@ Have fun and hope you find this useful!
 
 ## Requirements
 
-* [NodeJs](https://nodejs.org/en/download/package-manager/)
+* [Go](https://go.dev/doc/install) 1.26+
 * [Docker](https://docs.docker.com/get-docker/)
 * GNU Make
 
@@ -39,7 +39,6 @@ invoke of if you like to add one.
 
 ## Building
 ```
-make install-deps
 make all
 ```
 
@@ -48,7 +47,7 @@ make all
 make up
 ```
 
-Run app in development mode. This uses `nodemon` to auto reload modified files and enables verbose logging.
+Run app directly (no Docker) in development mode. This uses `go run -race` and shows error details on error pages.
 
 ```
 make run-app-dev-mode
@@ -56,13 +55,13 @@ make run-app-dev-mode
 
 ## Testing
 
-Run unit tests (all tests under `test/unit`):
+Run unit tests (`go vet` plus all tests under `internal/`):
 
 ```
 make tests
 ```
 
-Run integration tests (all tests under `test/integration`):
+Run integration tests (all tests under `test/integration`, which exercise the full HTTP stack in-process):
 
 ```
 make int-tests
@@ -81,4 +80,9 @@ All the endpoints are instrumented with timing and status code counters using St
 ## Contributing
 Please send an issue or pull request. Thanks.
 
+## Response time percentiles
 
+Response times (including any injected latency) are tracked with [HdrHistogram](https://github.com/HdrHistogram/hdrhistogram-go):
+
+* The dashboard shows p50/p90/p99/p99.9/max over the last 30s, for all paths and the busiest ones. The same data is in `GET /sink/stats` under `latency`.
+* `GET /metrics` serves Prometheus metrics for sink traffic: `http_sink_requests_total{method,code}` and the `http_sink_request_duration_seconds` histogram, since startup.

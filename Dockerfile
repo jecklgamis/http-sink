@@ -1,31 +1,20 @@
-FROM node:24-alpine
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/http-sink .
+
+FROM alpine:3.22
 LABEL org.opencontainers.image.authors="jecklgamis@gmail.com"
 
-RUN apk add --no-cache curl dumb-init
+RUN apk add --no-cache curl && addgroup -S app && adduser -S app -G app
 
-ENV APP_HOME=/app
-
-RUN mkdir -p ${APP_HOME}
 WORKDIR /app
-COPY "package.json" .
-COPY "package-lock.json" .
-RUN npm install -production
-ADD public public
-ADD routes routes
-ADD views views
-ADD middleware middleware
-COPY app.js .
-COPY build-info-data.js .
-COPY server.crt .
-COPY server.key .
+COPY --from=build /out/http-sink .
+COPY --chown=app:app server.crt server.key ./
 
-RUN addgroup -S app && adduser -S app -G app
-RUN chown -R app:app /app
-
+USER app
 EXPOSE 38080
 EXPOSE 8443
-COPY docker-entrypoint.sh /
-RUN chmod +x /docker-entrypoint.sh
-
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/app/http-sink"]

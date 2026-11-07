@@ -25,20 +25,18 @@ jobs:
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
-          echo "npm_version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Use Node.js
-        uses: actions/setup-node@v5
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          node-version: 24
-          cache: 'npm'
+          go-version-file: go.mod
 
-      - name: Install dependencies and run tests
+      - name: Generate build info and run tests
         run: |
-          npm ci
           ./generate-build-info.sh
           ./generate-ssl-certs.sh
-          npm test
+          go vet ./...
+          go test -race ./...
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
@@ -52,13 +50,10 @@ jobs:
             --app-version "${{ steps.version.outputs.version }}" \
             --destination dist
 
-      - name: Build source archive with matching package.json version
+      - name: Build source archive
         run: |
-          ARCHIVE_ROOT="/tmp/src/http-sink-${{ steps.version.outputs.tag }}"
-          mkdir -p "$ARCHIVE_ROOT"
-          git archive HEAD | tar -x -C "$ARCHIVE_ROOT"
-          npm --prefix "$ARCHIVE_ROOT" pkg set version="${{ steps.version.outputs.npm_version }}"
-          tar -czf "dist/http-sink-${{ steps.version.outputs.tag }}-sources.tar.gz" -C /tmp/src "http-sink-${{ steps.version.outputs.tag }}"
+          git archive --format=tar.gz --prefix="http-sink-${{ steps.version.outputs.tag }}/" \
+            -o "dist/http-sink-${{ steps.version.outputs.tag }}-sources.tar.gz" HEAD
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

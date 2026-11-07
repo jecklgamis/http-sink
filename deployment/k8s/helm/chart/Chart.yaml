@@ -1,6 +1,6 @@
 apiVersion: v2
 name: http-sink
-description: HTTP request sink and traffic inspector (ExpressJS)
+description: HTTP request sink and traffic inspector (Go)
 
 # A chart can be either an 'application' or a 'library' chart.
 #
