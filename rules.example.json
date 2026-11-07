@@ -1,0 +1,7 @@
+{
+  "rules": [
+    {"path": "/sink/orders", "delay": "50ms-300ms", "status": "503:10,429:5"},
+    {"path": "/sink/payments", "delay": "100ms:90,2s:10"},
+    {"path": "/sink/webhook", "status": "500:25"}
+  ]
+}

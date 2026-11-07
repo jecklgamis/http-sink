@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -46,6 +47,9 @@ func asRecorder(w http.ResponseWriter) *recorder {
 
 // rateLimit applies the global fixed-window limit.
 func (s *Server) rateLimit(next http.Handler) http.Handler {
+	if s.opts.NoRateLimit {
+		return next
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.opts.RateLimiter.Allow() {
 			writeJSON(w, http.StatusTooManyRequests, errorBody{
@@ -66,6 +70,10 @@ func (s *Server) accessLog(next http.Handler) http.Handler {
 		if s.opts.AccessLog == nil {
 			return
 		}
+		if s.opts.AccessLogJSON {
+			s.writeJSONAccessLog(r, rec, start)
+			return
+		}
 		size := "-"
 		if rec.bytes > 0 {
 			size = fmt.Sprint(rec.bytes)
@@ -81,6 +89,30 @@ func (s *Server) accessLog(next http.Handler) http.Handler {
 			r.Method, requestTarget(r), r.Proto, rec.status, size,
 			dash(r.Referer()), dash(r.UserAgent()))
 	})
+}
+
+// writeJSONAccessLog writes one JSON object per request.
+func (s *Server) writeJSONAccessLog(r *http.Request, rec *recorder, start time.Time) {
+	line, err := json.Marshal(struct {
+		Time       string  `json:"time"`
+		Remote     string  `json:"remote"`
+		Method     string  `json:"method"`
+		Target     string  `json:"target"`
+		Proto      string  `json:"proto"`
+		Status     int     `json:"status"`
+		Bytes      int64   `json:"bytes"`
+		Referer    string  `json:"referer,omitempty"`
+		UserAgent  string  `json:"user_agent,omitempty"`
+		DurationMs float64 `json:"duration_ms"`
+	}{
+		Time: start.Format(time.RFC3339Nano), Remote: clientIP(r), Method: r.Method,
+		Target: requestTarget(r), Proto: r.Proto, Status: rec.status, Bytes: rec.bytes,
+		Referer: r.Referer(), UserAgent: r.UserAgent(),
+		DurationMs: float64(time.Since(start).Microseconds()) / 1000,
+	})
+	if err == nil {
+		fmt.Fprintf(s.opts.AccessLog, "%s\n", line)
+	}
 }
 
 // serveStatic serves the embedded dashboard assets before any routing,

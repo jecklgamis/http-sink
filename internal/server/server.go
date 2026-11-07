@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -39,6 +40,16 @@ type Options struct {
 	// MaxDelayedRequests bounds how many requests may be sleeping on an injected
 	// delay at once; defaults to DefaultMaxDelayedRequests.
 	MaxDelayedRequests int
+	// MaxDelay is the longest delay a request or rule may ask for; defaults to DefaultMaxDelay.
+	MaxDelay time.Duration
+	// MaxBodyBytes caps parsed (JSON and form) request bodies; defaults to DefaultMaxBodyBytes.
+	MaxBodyBytes int64
+	// NoRateLimit disables the global rate limit.
+	NoRateLimit bool
+	// AccessLogJSON writes the access log as one JSON object per line instead of combined format.
+	AccessLogJSON bool
+	// Instance names this replica in the stats view; defaults to the hostname.
+	Instance string
 }
 
 // Server is the http-sink application; it implements http.Handler.
@@ -46,31 +57,38 @@ type Server struct {
 	opts    Options
 	stats   *sink.Stats
 	metrics *sink.Metrics
-	latency *sink.Latency
-	failure *sink.Failure
 	tmpl    *template.Template
 	static  fs.FS
 	handler http.Handler
 	// delaySlots is a counting semaphore for in-flight delayed requests.
-	delaySlots  chan struct{}
-	persistence *sink.Persistence
+	delaySlots chan struct{}
+	// rules are the static per-path injections; set once before serving, read-only after.
+	rules    map[string]ruleEntry
+	ruleList []Rule
 }
 
 // New builds a Server with fresh in-memory state.
 func New(opts Options) *Server {
-	if opts.RateLimiter == nil {
+	if opts.RateLimiter == nil && !opts.NoRateLimit {
 		opts.RateLimiter = ratelimit.New(DefaultRateLimit, time.Second)
 	}
 	if opts.MaxDelayedRequests <= 0 {
 		opts.MaxDelayedRequests = DefaultMaxDelayedRequests
+	}
+	if opts.MaxDelay <= 0 {
+		opts.MaxDelay = DefaultMaxDelay
+	}
+	if opts.MaxBodyBytes <= 0 {
+		opts.MaxBodyBytes = DefaultMaxBodyBytes
+	}
+	if opts.Instance == "" {
+		opts.Instance, _ = os.Hostname()
 	}
 	s := &Server{
 		delaySlots: make(chan struct{}, opts.MaxDelayedRequests),
 		opts:       opts,
 		stats:      sink.NewStats(),
 		metrics:    sink.NewMetrics(),
-		latency:    sink.NewLatency(),
-		failure:    sink.NewFailure(),
 		tmpl:       template.Must(template.ParseFS(web.Templates, "templates/*.html")),
 		static:     web.Public(),
 	}
@@ -84,26 +102,6 @@ func New(opts Options) *Server {
 		s.recordSinkStats,
 	)
 	return s
-}
-
-// EnablePersistence restores the latency and failure configs from dir and keeps
-// the files up to date as they change. Call Close to flush on shutdown.
-func (s *Server) EnablePersistence(dir string) error {
-	p, err := sink.OpenPersistence(dir, s.latency, s.failure)
-	if err != nil {
-		return err
-	}
-	s.persistence = p
-	return nil
-}
-
-// Close flushes any pending persisted state. It is safe to call without
-// EnablePersistence.
-func (s *Server) Close() error {
-	if s.persistence == nil {
-		return nil
-	}
-	return s.persistence.Close()
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.handler.ServeHTTP(w, r) }
@@ -152,7 +150,7 @@ type probeResponse struct {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	s.renderPage(w, http.StatusOK, "index.html", pageData{Title: "http-sink", Message: indexMessage})
+	s.renderPage(w, http.StatusOK, "index.html", pageData{Title: "http-sink", Message: indexMessage, MaxDelay: s.opts.MaxDelay.String()})
 }
 
 type pageData struct {
@@ -160,6 +158,8 @@ type pageData struct {
 	Message string
 	Status  int
 	Stack   string
+	// MaxDelay is shown in the dashboard's injection help.
+	MaxDelay string
 }
 
 func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data pageData) {

@@ -1,3 +1,5 @@
+// Package sink holds the in-memory, per-instance observability state behind
+// the /sink endpoints: traffic stats and response-time metrics.
 package sink
 
 import (
@@ -45,6 +47,7 @@ type WindowStats struct {
 
 // Snapshot is the payload served at GET /sink/stats.
 type Snapshot struct {
+	Instance       string                 `json:"instance,omitempty"` // which replica produced this view
 	Now            int64                  `json:"now"`
 	Windows        map[string]WindowStats `json:"windows"`
 	RecentRequests []Entry                `json:"recentRequests"`

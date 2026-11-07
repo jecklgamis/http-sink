@@ -2,135 +2,144 @@
 
 [![Build](https://github.com/jecklgamis/http-sink/actions/workflows/build.yaml/badge.svg)](https://github.com/jecklgamis/http-sink/actions/workflows/build.yaml)
 
-A request sink for testing HTTP clients: `/sink` accepts any method or subpath, echoes back what it received, and lets you simulate latency and failures per path while watching live traffic stats on a built-in dashboard.
+Relax, sink it. **http-sink** accepts any HTTP request, echoes back what it received, and shows your traffic live on a
+dashboard. Make requests slow or flaky with a query parameter to see how your client copes.
 
-Docker:  `docker run --name http-sink -p 38080:38080 -it  jecklgamis/http-sink:main`
+## Try it
 
-What's In The Box?
+```
+docker run -p 38080:38080 jecklgamis/http-sink:main
+```
 
-* `GET|POST|PUT|...  /sink` and `/sink/*` — echoes method, path, headers, body, query args, and origin IP as JSON (httpbin-style)
-* Live dashboard at `/` — RPS sparkline, RPS by path & method, last-10-requests inspector (freeze/clear, click-to-expand headers/body), all polling `/sink/stats`
-* Per-path **latency simulation** (`/sink/config/latency`) — add a random 0..N ms delay before responding
-* Per-path **failure injection** (`/sink/config/failure`) — return a configured status code for a configured fraction of requests
-* [Go](https://go.dev) app, Alpine [Docker](https://docker.io) image, HTTP and HTTPS listeners (self-signed certs)
-* /build-info endpoint (returns Git branch, version, and build time info)
-* /probe/ready, /probe/live endpoints for Kubernetes deployment
-* Statsd metrics (response time, 2xx/3xx/4xx/5xx metrics)
-* [Kubernetes](https://kubernetes.io/) Helm chart 
+(or from source with Go 1.26+: `make run-app-dev-mode`)
 
-Have fun and hope you find this useful!
+Open http://localhost:38080, then send it something:
 
-## Practical Uses
+```
+curl -X POST 'localhost:38080/sink/hello?x=1' -H 'Content-Type: application/json' -d '{"name": "world"}'
+```
 
-* **Debugging what a client actually sends** — point any HTTP client (webhook sender, API integration, mobile app, curl script) at `/sink/...` and see the exact method, headers, body, and query args it produced, live, in the Packet Inspection panel — no need to stand up a real backend or add logging to debug "why isn't my webhook payload what I expect."
-* **Testing client resilience without touching real infrastructure** — the [latency/failure injection](#simulating-latency-and-failures) lets you simulate a slow or flaky downstream service (500s, timeouts, jitter) to verify your client's retry/backoff/timeout logic actually works, without needing chaos-engineering tooling like Toxiproxy or modifying a real service.
-* **Load-testing target** — since it's a lightweight sink that just echoes and records stats, it's a safe place to point Gatling/load-gen scripts at and watch RPS/traffic patterns live instead of guessing from logs.
-* **Sharing with a team** — latency/failure config is keyed by exact path, so people or test scenarios can share one instance by picking distinct paths (e.g. `/sink/team-a/checkout`). There is no auth or per-user isolation: request payloads on the dashboard are visible to everyone. Latency/failure configs expire after 1 hour (re-adding refreshes them), and at most 200 of each can exist at once. For real isolation, run one deployment (Helm release) per team.
-* **Zero-setup webhook/callback receiver** — anything that needs to POST somewhere and you just want to confirm it fired and see the payload (third-party webhooks, CI notifications, IoT devices) can point at it with no auth, no schema, no setup.
+You get your request echoed back (method, path, query args, headers, body, origin) and it appears in the dashboard's
+**Packet Inspection** table. Anything under `/sink` works: any method, any subpath.
+
+Now make it misbehave:
+
+```
+curl 'localhost:38080/sink/hello?sinkDelay=2s'            # wait 2 seconds
+curl 'localhost:38080/sink/hello?sinkStatus=503'          # fail with a 503
+curl 'localhost:38080/sink/hello?sinkStatus=503:30'       # fail 30% of the time
+```
+
+## What it's good for
+
+* **Seeing what a client really sends** — webhooks, API integrations, mobile apps, curl scripts.
+* **Testing retries, backoff and timeouts** — simulate a slow or flaky service without touching a real one.
+* **A load-test target** — watch requests per second and response-time percentiles live.
+* **A throwaway webhook receiver** — no auth, no schema, no setup.
 
 ## Simulating latency and failures
 
-There are two ways to make the sink slow or flaky. Both apply to `/sink/...` requests only, and injected delay counts toward the reported response times.
+Add these to any `/sink/...` request, as query parameters or headers (the query parameter wins). They affect only that
+request, so nothing is stored and people sharing an instance can't interfere with each other.
 
-### Per request (stateless)
-
-Add parameters to the request itself, as query parameters or headers (the query parameter wins if both are given). Only that one request is affected, so people sharing an instance can't interfere with each other.
-
-| Query parameter | Header | Meaning |
+| Query parameter | Header | Examples |
 |---|---|---|
-| `sinkDelay` | `X-Sink-Delay` | Delay before responding: `250ms`, `1.5s`, a bare number of milliseconds (`250`), or a random range (`50ms-300ms`). Maximum `10s`. |
-| `sinkStatus` | `X-Sink-Status` | Respond with this status (400-599) instead of 200. Fails every time unless `sinkFailRate` is set. |
-| `sinkFailRate` | `X-Sink-Fail-Rate` | Fraction of requests (0-1) that fail. Without `sinkStatus` the failure is a `500`. |
+| `sinkDelay` | `X-Sink-Delay` | `250ms`, `1.5s`, `250` (milliseconds), `50ms-300ms` (random in a range) |
+| `sinkStatus` | `X-Sink-Status` | `503`, any status from 400 to 599 |
+
+**Probability lists** apply a value to only some requests, as `value:percent,value:percent`. The percentages must add up
+to 100 or less, and the rest of the requests are left alone:
 
 ```
-curl 'localhost:38080/sink/orders?sinkDelay=50ms-300ms'                  # random 50-300ms delay
-curl 'localhost:38080/sink/orders?sinkStatus=503'                        # always 503
-curl 'localhost:38080/sink/orders?sinkStatus=502&sinkFailRate=0.3'       # 30% of requests get a 502
-curl -H 'X-Sink-Delay: 2s' -H 'X-Sink-Status: 504' localhost:38080/sink/orders
+sinkStatus=503:10,429:5          10% get a 503, 5% get a 429, the rest succeed
+sinkDelay=50ms:90,2s:10          90% wait 50ms, 10% wait 2 seconds
 ```
 
-* The names are prefixed on purpose, so ordinary parameters your clients already send (`?status=active`, `?delay=5`) are just echoed back and never interpreted.
-* Invalid values return `400` with an explanation, rather than being ignored.
-* A request's own settings replace any path config for that request. A delayed response carries an `X-Sink-Injected-Delay-Ms` header with the delay that was applied.
-* At most 500 requests can be sleeping on a delay at once. Beyond that the sink answers `429` immediately instead of queueing more.
+Good to know:
 
-### Per path (shared config)
+* The names are prefixed, so ordinary parameters your clients already send (`?status=active`) are just echoed back.
+* Bad values get a `400` with an explanation, and delays are capped at `MAX_DURATION` (10s by default).
+* Delayed responses carry an `X-Sink-Injected-Delay-Ms` header. Injected delay counts in the reported response times.
 
-For clients you can't modify to add parameters, configure an exact path on the dashboard or the API:
+### For clients you can't change
 
-```
-curl -X POST localhost:38080/sink/config/latency -H 'Content-Type: application/json' \
-     -d '{"path": "/sink/team-a/checkout", "jitterMs": 200}'
-curl -X POST localhost:38080/sink/config/failure -H 'Content-Type: application/json' \
-     -d '{"path": "/sink/team-a/checkout", "rate": 0.25, "statusCode": 503}'
-curl -X DELETE 'localhost:38080/sink/config/latency?path=/sink/team-a/checkout'
-```
+If a client can't add parameters, preload rules for exact paths from a file and set `SINK_RULES_FILE` to its location
+([`rules.example.json`](rules.example.json)):
 
-Path config is shared by everyone using the instance. Each config expires after 1 hour (setting it again refreshes it), and at most 200 of each type can exist (the API returns `429` beyond that).
-
-#### Persistence
-
-Path configs are saved to `configs.json` in the data directory and restored on startup, with their original expiry (entries that expired while the app was down are dropped). Traffic stats, recent requests and metrics are deliberately not persisted.
-
-* The directory is `SINK_DATA_DIR`, default `./data`. Set it to an empty string to disable persistence.
-* Writes are atomic and debounced (about 250ms), and flushed on shutdown. A corrupt file is moved aside to `configs.json.corrupt` and the app starts empty. The app refuses to start if the directory isn't writable.
-* In Docker the directory is the `/data` volume, so mount a volume to keep configs across container replacement: `docker run -v http-sink-data:/data ...` (`make run` does this). It is a single-instance file, so replicas don't share configs.
-
-## Requirements
-
-* [Go](https://go.dev/doc/install) 1.26+
-* [Docker](https://docs.docker.com/get-docker/)
-* GNU Make
-
-Most build and run commands are wrapped inside Makefile. Explore this one to see what the existing targets you can
-invoke of if you like to add one.
-
-## Building
-```
-make all
+```json
+{
+  "rules": [
+    {"path": "/sink/orders",  "delay": "50ms-300ms", "status": "503:10,429:5"},
+    {"path": "/sink/webhook", "status": "500:25"}
+  ]
+}
 ```
 
-## Running
+Same syntax as above. Rules match their exact path, are read once at startup, and can't be changed at runtime (the
+dashboard lists them). A request's own parameters override a rule.
+
+## Endpoints
+
+| Endpoint | What it does |
+|---|---|
+| `ANY /sink`, `/sink/*` | Echo the request back (JSON) |
+| `GET /` | The live dashboard |
+| `GET /sink/stats` | The dashboard's data: RPS, recent requests, p50/p75/p90/p95/p99/max response times over 30s |
+| `DELETE /sink/recent` | Clear the recent-requests table |
+| `GET /sink/rules` | The configured rules |
+| `GET /metrics` | Prometheus metrics for sink traffic |
+| `GET /build-info` | Git branch, version and build time |
+| `GET /probe/live`, `/probe/ready` | Kubernetes health probes |
+
+HTTPS is served on `8443` as well when `server.crt` and `server.key` are present (`./generate-ssl-certs.sh` makes
+self-signed ones). All endpoints also emit StatsD timers and counters (`<path>.duration`, `.hits`, `.2xx`..`.5xx`) to
+`localhost:8125`.
+
+## Configuration
+
+Environment variables only; everything is optional.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `38080` | HTTP port |
+| `HTTPS_PORT` | `8443` | HTTPS port |
+| `SINK_RULES_FILE` | none | Static per-path rules file |
+| `MAX_DURATION` | `10s` | Longest delay a request or rule may ask for |
+| `MAX_BODY_SIZE` | `102400` | Largest JSON or form body parsed and echoed, in bytes (larger gets a `413`) |
+| `RATE_LIMIT` | `1000` | Requests per second per instance; `0` disables |
+| `LOG_FORMAT` | `text` | Access log as `text` (Apache combined) or `json` |
+| `APP_ENV` | none | `development` shows error details on error pages |
+
+## Running more than one instance
+
+http-sink keeps no database, volume or shared state, so you can run as many replicas as you like. Instances don't
+coordinate, which has two consequences:
+
+* **The dashboard shows one instance's traffic.** Behind a load balancer each refresh can land on a different replica,
+  so the numbers jump around. Use sticky sessions at your ingress (see the commented annotation in the Helm chart's
+  `values.yaml`) so a browser stays on one replica.
+* **The rate limit is per instance**, so the effective limit is `RATE_LIMIT` times the number of replicas.
+
+For one view across all replicas, scrape `/metrics` with Prometheus, which sums them, for example
+`sum(rate(http_sink_requests_total[1m]))`.
+
+The Helm chart (`deployment/k8s/helm`) can mount your rules from a ConfigMap (`rules` value) and pass extra
+environment variables (`extraEnv`).
+
+## Development
+
+Needs Go 1.26+, Docker and GNU Make.
+
 ```
-make up
+make run-app-dev-mode    # run locally with the race detector and error details
+make tests               # go vet and unit tests
+make int-tests           # integration tests (full HTTP stack, in-process)
+make image               # build the Docker image
+make all                 # tests, image and Helm chart
 ```
 
-Run app directly (no Docker) in development mode. This uses `go run -race` and shows error details on error pages.
-
-```
-make run-app-dev-mode
-```
-
-## Testing
-
-Run unit tests (`go vet` plus all tests under `internal/`):
-
-```
-make tests
-```
-
-Run integration tests (all tests under `test/integration`, which exercise the full HTTP stack in-process):
-
-```
-make int-tests
-```
-
-
-All the endpoints are instrumented with timing and status code counters using Statsd.
-
-* <endpoint.name>.duration - timer
-* <endpoint.name>.hits - counter
-* <endpoint.name>.2xx - counter
-* <endpoint.name>.3xx - counter
-* <endpoint.name>.4xx - counter
-* <endpoint.name>.5xx - counter
+Run `make` to list the other targets.
 
 ## Contributing
+
 Please send an issue or pull request. Thanks.
-
-## Response time percentiles
-
-Response times (including any injected latency) are tracked with [HdrHistogram](https://github.com/HdrHistogram/hdrhistogram-go):
-
-* The dashboard shows p50/p75/p90/p95/p99/max over the last 30s, for all paths and the busiest ones. The same data is in `GET /sink/stats` under `latency`.
-* `GET /metrics` serves Prometheus metrics for sink traffic: `http_sink_requests_total{method,code}` and the `http_sink_request_duration_seconds` histogram, since startup.

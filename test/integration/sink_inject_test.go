@@ -44,6 +44,21 @@ func TestRequestDelay(t *testing.T) {
 	}
 }
 
+func TestRequestDelayList(t *testing.T) {
+	base := newApp(t)
+	const n = 300
+	delayed := 0
+	for i := 0; i < n; i++ {
+		res := do(t, "GET", base+"/sink/x?sinkDelay=1ms:30", nil) // 30% wait 1ms, the rest don't
+		if res.Header.Get("X-Sink-Injected-Delay-Ms") != "" {
+			delayed++
+		}
+	}
+	if delayed < n*15/100 || delayed > n*45/100 {
+		t.Fatalf("%d/%d delayed at 30%%", delayed, n)
+	}
+}
+
 func TestRequestDelayIsRecordedInResponseTime(t *testing.T) {
 	base := newApp(t)
 	do(t, "GET", base+"/sink/rt?sinkDelay=100ms", nil)
@@ -57,8 +72,8 @@ func TestRequestDelayIsRecordedInResponseTime(t *testing.T) {
 func TestInvalidInjectionIs400(t *testing.T) {
 	base := newApp(t)
 	for _, q := range []string{
-		"sinkDelay=abc", "sinkDelay=11s", "sinkDelay=300ms-100ms", "sinkDelay=-5ms",
-		"sinkStatus=200", "sinkStatus=abc", "sinkFailRate=2", "sinkFailRate=abc",
+		"sinkDelay=abc", "sinkDelay=11s", "sinkDelay=300ms-100ms", "sinkDelay=-5ms", "sinkDelay=1s:60,2s:60",
+		"sinkStatus=200", "sinkStatus=abc", "sinkStatus=503:150", "sinkStatus=503:60,429:60",
 	} {
 		res := do(t, "GET", base+"/sink/x?"+q, nil)
 		wantStatus(t, res, 400)
@@ -71,54 +86,42 @@ func TestInvalidInjectionIs400(t *testing.T) {
 func TestRequestFailure(t *testing.T) {
 	base := newApp(t)
 
-	res := do(t, "GET", base+"/sink/x?sinkStatus=503", nil) // rate defaults to 1
+	res := do(t, "GET", base+"/sink/x?sinkStatus=503", nil) // a bare status always fails
 	wantStatus(t, res, 503)
 	if got := res.JSON(t); got["injectedFailure"] != true || got["statusCode"] != float64(503) {
 		t.Fatalf("body = %s", res.Raw)
 	}
-
-	wantStatus(t, do(t, "GET", base+"/sink/x?sinkFailRate=1", nil), 500) // status defaults to 500
-	wantStatus(t, do(t, "GET", base+"/sink/x?sinkStatus=503&sinkFailRate=0", nil), 200)
+	wantStatus(t, do(t, "GET", base+"/sink/x?sinkStatus=504:100", nil), 504)
 	wantStatus(t, do(t, "GET", base+"/sink/x", nil, withHeader("X-Sink-Status", "502")), 502)
+}
 
-	// roughly half of requests fail at rate 0.5
-	failed := 0
-	for i := 0; i < 200; i++ {
-		if do(t, "GET", base+"/sink/x?sinkStatus=500&sinkFailRate=0.5", nil).Status == 500 {
-			failed++
+func TestRequestFailureProbabilityList(t *testing.T) {
+	base := newApp(t)
+	const n = 600
+	counts := map[int]int{}
+	for i := 0; i < n; i++ {
+		counts[do(t, "GET", base+"/sink/x?sinkStatus=503:20,429:20", nil).Status]++
+	}
+	// expected 20% / 20% / 60% (sd ~ 3% of n); bounds are wide enough to never flake
+	for status, want := range map[int]float64{503: 0.20, 429: 0.20, 200: 0.60} {
+		got := float64(counts[status]) / n
+		if got < want-0.10 || got > want+0.10 {
+			t.Fatalf("status %d = %.0f%%, want ~%.0f%% (counts %v)", status, got*100, want*100, counts)
 		}
 	}
-	if failed < 50 || failed > 150 {
-		t.Fatalf("%d/200 failed at rate 0.5", failed)
+	if len(counts) != 3 {
+		t.Fatalf("unexpected statuses: %v", counts)
 	}
 }
 
 func TestOrdinaryClientParamsAreNotInterpreted(t *testing.T) {
 	base := newApp(t)
-	res := do(t, "GET", base+"/sink/webhook?status=active&delay=5s&failRate=9", nil)
+	// includes the removed sinkFailRate: no longer special, so it is just echoed
+	res := do(t, "GET", base+"/sink/webhook?status=active&delay=5s&failRate=9&sinkFailRate=1", nil)
 	wantStatus(t, res, 200)
 	args := res.JSON(t)["args"].(map[string]any)
-	if args["status"] != "active" || args["delay"] != "5s" {
+	if args["status"] != "active" || args["delay"] != "5s" || args["sinkFailRate"] != "1" {
 		t.Fatalf("args = %v", args)
-	}
-}
-
-func TestRequestSettingsOverridePathConfig(t *testing.T) {
-	base := newApp(t)
-	path := "/sink/" + uniqueName("ovr")
-	wantStatus(t, do(t, "POST", base+"/sink/config/failure",
-		map[string]any{"path": path, "rate": 1, "statusCode": 500}), 201)
-	wantStatus(t, do(t, "POST", base+"/sink/config/latency",
-		map[string]any{"path": path, "jitterMs": 200}), 201)
-
-	wantStatus(t, do(t, "GET", base+path, nil), 500) // path config applies by default
-
-	// the request's own failRate=0 replaces the config's 100% failure, and its
-	// fixed 1ms delay replaces the path's random jitter (the header reports it)
-	res := do(t, "GET", base+path+"?sinkStatus=503&sinkFailRate=0&sinkDelay=1ms", nil)
-	wantStatus(t, res, 200)
-	if got := res.Header.Get("X-Sink-Injected-Delay-Ms"); got != "1" {
-		t.Fatalf("injected delay = %q, want the request's 1ms", got)
 	}
 }
 
@@ -134,8 +137,7 @@ func TestDelayedRequestsAreBounded(t *testing.T) {
 	}()
 	time.Sleep(100 * time.Millisecond) // let the first request take the only slot
 
-	res := do(t, "GET", ts.URL+"/sink/x?sinkDelay=50ms", nil)
-	wantStatus(t, res, 429)
+	wantStatus(t, do(t, "GET", ts.URL+"/sink/x?sinkDelay=50ms", nil), 429)
 	wantStatus(t, do(t, "GET", ts.URL+"/sink/x", nil), 200) // undelayed requests are unaffected
 
 	wg.Wait()

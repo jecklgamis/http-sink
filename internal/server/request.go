@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"strings"
@@ -122,37 +121,5 @@ func hasBody(body any) bool {
 		return len(b) > 0
 	default:
 		return true
-	}
-}
-
-// toNumber converts a decoded value the way JavaScript's Number() would for
-// the types a client can send. ok is false for missing or non-numeric values.
-func toNumber(m map[string]any, key string) (float64, bool) {
-	v, present := m[key]
-	if !present {
-		return 0, false
-	}
-	switch n := v.(type) {
-	case nil:
-		return 0, true
-	case float64:
-		return n, true
-	case json.Number:
-		f, err := n.Float64()
-		return f, err == nil
-	case bool:
-		if n {
-			return 1, true
-		}
-		return 0, true
-	case string:
-		s := strings.TrimSpace(n)
-		if s == "" {
-			return 0, true
-		}
-		f, err := parseFloat(s)
-		return f, err == nil
-	default:
-		return 0, false
 	}
 }

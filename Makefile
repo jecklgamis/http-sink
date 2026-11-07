@@ -17,7 +17,7 @@ dist:
 image:
 	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
 run:
-	docker run -p 38080:38080 -p 8443:8443 -v http-sink-data:/data $(IMAGE_NAME):$(IMAGE_TAG)
+	docker run -p 38080:38080 -p 8443:8443 $(IMAGE_NAME):$(IMAGE_TAG)
 build:
 	go build -o http-sink .
 run-app-dev-mode:

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestSinkEchoesRequest(t *testing.T) {
@@ -84,31 +83,5 @@ func TestSinkTrafficAppearsInStats(t *testing.T) {
 	stats = do(t, "GET", base+"/sink/stats", nil).JSON(t)
 	if n := len(stats["recentRequests"].([]any)); n != 0 {
 		t.Fatalf("recentRequests after clear = %d, want 0", n)
-	}
-}
-
-func TestInjectedFailure(t *testing.T) {
-	base := newApp(t)
-	path := "/sink/" + uniqueName("boom")
-	wantStatus(t, do(t, "POST", base+"/sink/config/failure",
-		map[string]any{"path": path, "rate": 1, "statusCode": 503}), 201)
-
-	res := do(t, "GET", base+path, nil)
-	wantStatus(t, res, 503)
-	if res.JSON(t)["injectedFailure"] != true {
-		t.Fatalf("body = %s", res.Raw)
-	}
-}
-
-func TestInjectedLatency(t *testing.T) {
-	base := newApp(t)
-	path := "/sink/" + uniqueName("slow")
-	wantStatus(t, do(t, "POST", base+"/sink/config/latency",
-		map[string]any{"path": path, "jitterMs": 5}), 201)
-
-	start := time.Now()
-	wantStatus(t, do(t, "GET", base+path, nil), 200)
-	if time.Since(start) > 2*time.Second {
-		t.Fatal("request with 5ms jitter took far too long")
 	}
 }

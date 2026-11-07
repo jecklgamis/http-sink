@@ -48,8 +48,7 @@ a {
 
 div#live-stats-section,
 div#packet-inspection-section,
-div#latency-section,
-div#failure-section {
+div#injection-section {
   border-radius: 8px;
   padding: 16px 20px;
   margin: 16px 0;
@@ -67,14 +66,9 @@ div#packet-inspection-section {
   border-color: #dfdaf5;
 }
 
-div#latency-section {
-  background: #fdf3ea;
-  border-color: #f5e3cd;
-}
-
-div#failure-section {
-  background: #fbeef1;
-  border-color: #f3d9e0;
+div#injection-section {
+  background: #eef6f4;
+  border-color: #d6ebe6;
 }
 
 table#sink-breakdown,
@@ -105,14 +99,6 @@ table#sink-recent td {
   font-size: 12px;
   max-width: none;
   margin: 4px 0 10px;
-}
-
-.form-error {
-  display: block;
-  color: #b2182b;
-  font-size: 12px;
-  margin-top: 6px;
-  margin-bottom: 10px;
 }
 
 table#sink-recent pre {
@@ -150,95 +136,24 @@ table#sink-recent td.user-agent-cell {
   white-space: nowrap;
 }
 
-table#sink-latency {
+table#sink-rules,
+table#sink-injection-help {
   border-collapse: collapse;
   margin-top: 10px;
 }
 
-table#sink-latency th,
-table#sink-latency td {
+table#sink-rules th,
+table#sink-rules td,
+table#sink-injection-help th,
+table#sink-injection-help td {
   border: 1px solid #ccc;
   padding: 6px 12px;
   text-align: left;
+  vertical-align: top;
 }
 
-#latency-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-top: 10px;
-}
-
-table#sink-failure {
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-table#sink-failure th,
-table#sink-failure td {
-  border: 1px solid #ccc;
-  padding: 6px 12px;
-  text-align: left;
-}
-
-#failure-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-top: 10px;
-}
-
-#failure-path {
-  width: 260px;
-}
-
-#failure-rate {
-  width: 80px;
-}
-
-#failure-status {
-  width: 220px;
-  max-width: 100%;
-}
-
-div#rps-sparkline-wrap {
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-div#rps-sparkline-row {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-}
-
-div#rps-sparkline-yaxis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #888;
-  text-align: right;
-  width: 28px;
-  padding: 2px 0;
-}
-
-svg#rps-sparkline {
-  flex: 1;
-  width: 100%;
-  height: 100px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #fafafa;
-}
-
-div#rps-sparkline-axis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #888;
-  margin-top: 2px;
-  margin-left: 34px;
+table#sink-injection-help code {
+  background: #f2f2f2;
+  padding: 1px 5px;
+  border-radius: 3px;
 }

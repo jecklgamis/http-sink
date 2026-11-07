@@ -13,9 +13,14 @@ spec:
       {{- include "http-sink.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.podAnnotations .Values.rules }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.rules }}
+        checksum/rules: {{ include (print $.Template.BasePath "/configmap-rules.yaml") . | sha256sum }}
+        {{- end }}
       {{- end }}
       labels:
         {{- include "http-sink.selectorLabels" . | nindent 8 }}
@@ -37,6 +42,22 @@ spec:
             - name: http
               containerPort: 38080
               protocol: TCP
+          {{- if or .Values.rules .Values.extraEnv }}
+          env:
+            {{- if .Values.rules }}
+            - name: SINK_RULES_FILE
+              value: /etc/http-sink/rules.json
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if .Values.rules }}
+          volumeMounts:
+            - name: rules
+              mountPath: /etc/http-sink
+              readOnly: true
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /probe/live
@@ -47,6 +68,12 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.rules }}
+      volumes:
+        - name: rules
+          configMap:
+            name: {{ include "http-sink.fullname" . }}-rules
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

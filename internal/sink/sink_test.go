@@ -75,46 +75,6 @@ func TestStatsRecentIsCappedNewestFirstAndClearable(t *testing.T) {
 	}
 }
 
-func TestLatencyDelayFor(t *testing.T) {
-	l := NewLatency()
-	if d := l.DelayFor("/sink/p/x"); d != 0 {
-		t.Fatalf("unconfigured delay = %v, want 0", d)
-	}
-	l.Set("/sink/p/x", 50)
-	for i := 0; i < 200; i++ {
-		if d := l.DelayFor("/sink/p/x"); d < 0 || d >= 50*time.Millisecond {
-			t.Fatalf("delay %v outside [0,50ms)", d)
-		}
-	}
-	if d := l.DelayFor("/sink/p/other"); d != 0 {
-		t.Fatalf("other path delay = %v, want 0", d)
-	}
-	l.Remove("/sink/p/x")
-	if len(l.List()) != 0 {
-		t.Fatal("expected empty list after remove")
-	}
-}
-
-func TestFailureStatusCodeFor(t *testing.T) {
-	f := NewFailure()
-	f.Set("/sink/p/always", 1, 503)
-	f.Set("/sink/p/never", 0, 500)
-	for i := 0; i < 100; i++ {
-		if got := f.StatusCodeFor("/sink/p/always"); got != 503 {
-			t.Fatalf("rate 1 gave %d, want 503", got)
-		}
-		if got := f.StatusCodeFor("/sink/p/never"); got != 0 {
-			t.Fatalf("rate 0 gave %d, want 0", got)
-		}
-	}
-	if got := f.StatusCodeFor("/sink/p/unset"); got != 0 {
-		t.Fatalf("unset path gave %d, want 0", got)
-	}
-	if len(f.List()) != 2 {
-		t.Fatalf("list len = %d, want 2", len(f.List()))
-	}
-}
-
 func TestStatsLatencyPercentiles(t *testing.T) {
 	now := time.Unix(10_000, 0)
 	s := NewStats()
@@ -199,78 +159,5 @@ func TestMetricsPrometheusOutput(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
-	}
-}
-
-func TestConfigExpiresAfterTTL(t *testing.T) {
-	now := time.Unix(1000, 0)
-	l := NewLatency()
-	l.store.now = func() time.Time { return now }
-
-	cfg, err := l.Set("/sink/a", 50)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := now.Add(ConfigTTL).UnixMilli(); cfg.ExpiresAt != want {
-		t.Fatalf("expiresAt = %d, want %d", cfg.ExpiresAt, want)
-	}
-
-	now = now.Add(ConfigTTL - time.Second)
-	if len(l.List()) != 1 || l.store.items["/sink/a"].val != 50 {
-		t.Fatal("config should still be live just before expiry")
-	}
-
-	now = now.Add(2 * time.Second)
-	if len(l.List()) != 0 {
-		t.Fatal("config should be gone after TTL")
-	}
-	if d := l.DelayFor("/sink/a"); d != 0 {
-		t.Fatalf("expired config still delaying: %v", d)
-	}
-}
-
-func TestSetRefreshesTTL(t *testing.T) {
-	now := time.Unix(1000, 0)
-	f := NewFailure()
-	f.store.now = func() time.Time { return now }
-
-	f.Set("/sink/a", 1, 500)
-	now = now.Add(ConfigTTL - time.Minute)
-	f.Set("/sink/a", 1, 503) // refresh + update
-	now = now.Add(ConfigTTL - time.Minute)
-	if got := f.StatusCodeFor("/sink/a"); got != 503 {
-		t.Fatalf("status = %d, want 503 (TTL should have been refreshed)", got)
-	}
-}
-
-func TestConfigCap(t *testing.T) {
-	now := time.Unix(1000, 0)
-	l := NewLatency()
-	l.store.now = func() time.Time { return now }
-
-	for i := 0; i < MaxConfigs; i++ {
-		if _, err := l.Set(fmt.Sprintf("/sink/p%d", i), 10); err != nil {
-			t.Fatalf("set %d: %v", i, err)
-		}
-	}
-	if _, err := l.Set("/sink/overflow", 10); err != ErrTooManyConfigs {
-		t.Fatalf("err = %v, want ErrTooManyConfigs", err)
-	}
-	// updating an existing path is still allowed at the cap
-	if _, err := l.Set("/sink/p0", 99); err != nil {
-		t.Fatalf("update at cap: %v", err)
-	}
-	// removing frees a slot
-	l.Remove("/sink/p1")
-	if _, err := l.Set("/sink/overflow", 10); err != nil {
-		t.Fatalf("set after remove: %v", err)
-	}
-	// expiry frees slots too
-	now = now.Add(ConfigTTL + time.Second)
-	if _, err := l.Set("/sink/after-expiry", 10); err != nil {
-		t.Fatalf("set after expiry: %v", err)
-	}
-	if n := len(l.List()); n != 1 {
-		t.Fatalf("live configs = %d, want 1", n)
 	}
 }

@@ -9,14 +9,11 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 )
 
-// maxBodyBytes caps request bodies that are parsed (JSON and form).
-const maxBodyBytes = 100 * 1024
-
-func parseFloat(s string) (float64, error) { return strconv.ParseFloat(s, 64) }
+// DefaultMaxBodyBytes caps request bodies that are parsed (JSON and form).
+const DefaultMaxBodyBytes = 100 * 1024
 
 // parseBody decodes JSON and urlencoded request bodies (other content types
 // are left unparsed) and stores the result on the request context.
@@ -34,7 +31,7 @@ func (s *Server) parseBody(next http.Handler) http.Handler {
 			return
 		}
 
-		raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+		raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.opts.MaxBodyBytes))
 		if err != nil {
 			var tooLarge *http.MaxBytesError
 			if errors.As(err, &tooLarge) {

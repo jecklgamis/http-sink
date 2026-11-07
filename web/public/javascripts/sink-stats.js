@@ -200,24 +200,34 @@
 
     var recentFrozen = false;
 
-    var knownPaths = {};
+    function renderRules(rules) {
+        var tbody = document.getElementById('rules-body');
+        tbody.innerHTML = '';
+        if (rules.length === 0) {
+            var emptyRow = document.createElement('tr');
+            var emptyCell = document.createElement('td');
+            emptyCell.colSpan = 3;
+            emptyCell.textContent = 'no rules configured';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+            return;
+        }
+        rules.forEach(function (rule) {
+            var tr = document.createElement('tr');
+            [rule.path, rule.delay || '--', rule.status || '--'].forEach(function (value) {
+                var td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
 
-    function updateKnownPaths(byPath) {
-        var changed = false;
-        Object.keys(byPath).forEach(function (path) {
-            if (!knownPaths[path]) {
-                knownPaths[path] = true;
-                changed = true;
-            }
-        });
-        if (!changed) return;
-        var datalist = document.getElementById('failure-path-list');
-        datalist.innerHTML = '';
-        Object.keys(knownPaths).sort().forEach(function (path) {
-            var option = document.createElement('option');
-            option.value = path;
-            datalist.appendChild(option);
-        });
+    function loadRules() {
+        fetch('/sink/rules')
+            .then(function (res) { return res.json(); })
+            .then(renderRules)
+            .catch(function () {});
     }
 
     function update() {
@@ -228,12 +238,12 @@
                 renderRpsSparkline(data.rpsHistory);
                 renderBreakdown(w.byPathAndMethod, w.rpsByPathAndMethod);
                 renderResponseTime(data.latency);
-                updateKnownPaths(w.byPath);
                 if (!recentFrozen) {
                     renderRecent(data.recentRequests);
                 }
                 document.getElementById('stats-updated').textContent =
-                    'last updated ' + new Date(data.now).toLocaleTimeString();
+                    'last updated ' + new Date(data.now).toLocaleTimeString() +
+                    (data.instance ? ' \u00b7 instance ' + data.instance : '');
             })
             .catch(function () {
                 document.getElementById('stats-updated').textContent = 'stats unavailable';
@@ -252,100 +262,7 @@
         freezeButton.textContent = recentFrozen ? 'Unfreeze' : 'Freeze';
     });
 
-    function wireConfigSection(opts) {
-        function render(configs) {
-            var tbody = document.getElementById(opts.tbodyId);
-            tbody.innerHTML = '';
-            if (configs.length === 0) {
-                var emptyRow = document.createElement('tr');
-                var emptyCell = document.createElement('td');
-                emptyCell.colSpan = opts.fields.length + 1;
-                emptyCell.textContent = opts.emptyText;
-                emptyRow.appendChild(emptyCell);
-                tbody.appendChild(emptyRow);
-                return;
-            }
-            configs.forEach(function (c) {
-                var tr = document.createElement('tr');
-                opts.fields.forEach(function (f) {
-                    var td = document.createElement('td');
-                    td.textContent = c[f.key];
-                    tr.appendChild(td);
-                });
-                var actionTd = document.createElement('td');
-                var removeButton = document.createElement('button');
-                removeButton.textContent = 'Remove';
-                removeButton.addEventListener('click', function () {
-                    fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE'})
-                        .then(refresh);
-                });
-                actionTd.appendChild(removeButton);
-                tr.appendChild(actionTd);
-                tbody.appendChild(tr);
-            });
-        }
-
-        function refresh() {
-            fetch(opts.endpoint)
-                .then(function (res) { return res.json(); })
-                .then(render);
-        }
-
-        document.getElementById(opts.formId).addEventListener('submit', function (e) {
-            e.preventDefault();
-            var errorEl = document.getElementById(opts.errorId);
-            if (errorEl) errorEl.textContent = '';
-            var payload = {};
-            opts.fields.forEach(function (f) {
-                var raw = document.getElementById(f.id).value;
-                payload[f.key] = f.parse ? f.parse(raw) : raw.trim();
-            });
-            fetch(opts.endpoint, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload),
-            }).then(function (res) {
-                if (res.ok) {
-                    document.getElementById(opts.formId).reset();
-                    refresh();
-                } else {
-                    res.json().then(function (body) {
-                        if (errorEl) errorEl.textContent = body.error || 'request failed';
-                    }).catch(function () {
-                        if (errorEl) errorEl.textContent = 'request failed';
-                    });
-                }
-            });
-        });
-
-        refresh();
-    }
-
-    wireConfigSection({
-        endpoint: '/sink/config/latency',
-        formId: 'latency-form',
-        tbodyId: 'latency-body',
-        errorId: 'latency-form-error',
-        emptyText: 'no latency configs',
-        fields: [
-            {id: 'latency-path', key: 'path'},
-            {id: 'latency-jitter', key: 'jitterMs', parse: Number},
-        ],
-    });
-
-    wireConfigSection({
-        endpoint: '/sink/config/failure',
-        formId: 'failure-form',
-        tbodyId: 'failure-body',
-        errorId: 'failure-form-error',
-        emptyText: 'no failure configs',
-        fields: [
-            {id: 'failure-path', key: 'path'},
-            {id: 'failure-rate', key: 'rate', parse: Number},
-            {id: 'failure-status', key: 'statusCode', parse: Number},
-        ],
-    });
-
+    loadRules();
     update();
     setInterval(update, POLL_INTERVAL_MS);
 })();

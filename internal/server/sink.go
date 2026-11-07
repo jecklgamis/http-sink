@@ -3,15 +3,12 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"math"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/jecklgamis/http-sink/internal/sink"
 )
-
-const configPathHint = "path must be a subpath under /sink/, e.g. /sink/my-scenario"
 
 type errorBody struct {
 	Error string `json:"error"`
@@ -38,105 +35,31 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 func noContent(w http.ResponseWriter) { w.WriteHeader(http.StatusNoContent) }
 
 // routeSink handles everything under /sink. p is the trailing-slash-trimmed
-// path used for routing; path is the exact path used for latency/failure lookups.
+// path used for routing; path is the exact path used for rule lookups.
 func (s *Server) routeSink(w http.ResponseWriter, r *http.Request, p, path string) {
 	m := r.Method
+	isRead := m == http.MethodGet || m == http.MethodHead
 	switch {
-	case p == "/sink/stats" && (m == http.MethodGet || m == http.MethodHead):
-		writeJSON(w, http.StatusOK, s.stats.Compute())
+	case p == "/sink/stats" && isRead:
+		snap := s.stats.Compute()
+		snap.Instance = s.opts.Instance
+		writeJSON(w, http.StatusOK, snap)
 	case p == "/sink/recent" && m == http.MethodDelete:
 		s.stats.ClearRecent()
 		noContent(w)
-
-	case p == "/sink/config/latency" && (m == http.MethodGet || m == http.MethodHead):
-		writeJSON(w, http.StatusOK, s.latency.List())
-	case p == "/sink/config/latency" && m == http.MethodPost:
-		s.setLatency(w, r)
-	case p == "/sink/config/latency" && m == http.MethodDelete:
-		s.deleteConfig(w, r, s.latency.Remove)
-
-	case p == "/sink/config/failure" && (m == http.MethodGet || m == http.MethodHead):
-		writeJSON(w, http.StatusOK, s.failure.List())
-	case p == "/sink/config/failure" && m == http.MethodPost:
-		s.setFailure(w, r)
-	case p == "/sink/config/failure" && m == http.MethodDelete:
-		s.deleteConfig(w, r, s.failure.Remove)
-
+	case p == "/sink/rules" && isRead:
+		writeJSON(w, http.StatusOK, s.rulesOrEmpty())
 	default:
 		s.echo(w, r, path)
 	}
 }
 
-// validateConfigPath checks that path is a subpath under /sink/ (bare /sink
-// is not configurable). It returns an error message, or "" if the path is valid.
-func validateConfigPath(path string) string {
-	if !strings.HasPrefix(path, "/sink/") || len(path) == len("/sink/") {
-		return configPathHint
+func (s *Server) rulesOrEmpty() []Rule {
+	if s.ruleList == nil {
+		return []Rule{}
 	}
-	return ""
+	return s.ruleList
 }
-
-func (s *Server) setLatency(w http.ResponseWriter, r *http.Request) {
-	body := bodyObject(r)
-	path, _ := body["path"].(string)
-	if msg := validateConfigPath(path); msg != "" {
-		writeError(w, http.StatusBadRequest, msg)
-		return
-	}
-	jitter, ok := toNumber(body, "jitterMs")
-	if !ok || !isFinite(jitter) || jitter < 0 {
-		writeError(w, http.StatusBadRequest, "jitterMs must be a non-negative number")
-		return
-	}
-	cfg, err := s.latency.Set(path, jitter)
-	if err != nil {
-		writeError(w, http.StatusTooManyRequests, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusCreated, cfg)
-}
-
-func (s *Server) setFailure(w http.ResponseWriter, r *http.Request) {
-	body := bodyObject(r)
-	path, _ := body["path"].(string)
-	if msg := validateConfigPath(path); msg != "" {
-		writeError(w, http.StatusBadRequest, msg)
-		return
-	}
-	rate, ok := toNumber(body, "rate")
-	if !ok || !isFinite(rate) || rate < 0 || rate > 1 {
-		writeError(w, http.StatusBadRequest, "rate must be a number between 0 and 1")
-		return
-	}
-	code, ok := toNumber(body, "statusCode")
-	if !ok || !isFinite(code) || code != math.Trunc(code) || code < 400 || code > 599 {
-		writeError(w, http.StatusBadRequest, "statusCode must be an integer between 400 and 599")
-		return
-	}
-	cfg, err := s.failure.Set(path, rate, int(code))
-	if err != nil {
-		writeError(w, http.StatusTooManyRequests, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusCreated, cfg)
-}
-
-// deleteConfig removes a latency/failure config selected by the ?path= query param.
-func (s *Server) deleteConfig(w http.ResponseWriter, r *http.Request, remove func(string)) {
-	path := r.URL.Query().Get("path")
-	if path == "" {
-		writeError(w, http.StatusBadRequest, "path query param is required")
-		return
-	}
-	if msg := validateConfigPath(path); msg != "" {
-		writeError(w, http.StatusBadRequest, msg)
-		return
-	}
-	remove(path)
-	noContent(w)
-}
-
-func isFinite(f float64) bool { return !math.IsNaN(f) && !math.IsInf(f, 0) }
 
 type echoResponse struct {
 	Method  string            `json:"method"`
@@ -155,21 +78,23 @@ type injectedFailureResponse struct {
 	StatusCode      int    `json:"statusCode"`
 }
 
-// echo is the sink itself: after any configured delay and failure roll for
-// the exact path, it reflects the request back.
+// echo is the sink itself: after any requested (or rule-configured) delay and
+// failure, it reflects the request back. A request's own settings replace the
+// rule for its path, delay and status independently.
 func (s *Server) echo(w http.ResponseWriter, r *http.Request, path string) {
-	inj, err := parseInjection(r)
+	inj, err := parseInjection(r, s.opts.MaxDelay)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	rule := s.rules[path] // zero value (no injection) when the path has no rule
 
-	// A request's own settings replace the path config for that request.
 	var delay time.Duration
-	if inj.hasDelay {
+	switch {
+	case inj.hasDelay():
 		delay = inj.delay()
-	} else {
-		delay = s.latency.DelayFor(path)
+	case rule.inj.hasDelay():
+		delay = rule.inj.delay()
 	}
 	if delay > 0 {
 		if !s.acquireDelaySlot() {
@@ -188,10 +113,11 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request, path string) {
 	}
 
 	var code int
-	if inj.hasFailure {
+	switch {
+	case inj.hasStatus():
 		code = inj.failureStatus()
-	} else {
-		code = s.failure.StatusCodeFor(path)
+	case rule.inj.hasStatus():
+		code = rule.inj.failureStatus()
 	}
 	if code != 0 {
 		writeJSON(w, code, injectedFailureResponse{
@@ -212,17 +138,14 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request, path string) {
 
 // excludedFromStats are control-plane paths that never count as sink traffic.
 var excludedFromStats = map[string]bool{
-	"/sink/stats":          true,
-	"/sink/recent":         true,
-	"/sink/config/latency": true,
-	"/sink/config/failure": true,
+	"/sink/stats":  true,
+	"/sink/recent": true,
+	"/sink/rules":  true,
 }
 
 func isSinkTraffic(p string) bool { return p == "/sink" || strings.HasPrefix(p, "/sink/") }
 
-func isControlPlane(p string) bool {
-	return excludedFromStats[p]
-}
+func isControlPlane(p string) bool { return excludedFromStats[p] }
 
 // recordSinkStats records every non-control-plane /sink request once it finishes.
 func (s *Server) recordSinkStats(next http.Handler) http.Handler {

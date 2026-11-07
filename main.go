@@ -1,6 +1,7 @@
 // http-sink is a simple request sink: it accepts any method or subpath under
-// /sink, echoes it back, simulates latency and failures, and shows live
-// traffic stats on a dashboard.
+// /sink, echoes it back, simulates latency and failures per request (or from a
+// static rules file), and shows live traffic stats on a dashboard. It keeps no
+// state that needs sharing, so any number of replicas can run side by side.
 package main
 
 import (
@@ -20,51 +21,52 @@ import (
 )
 
 const (
-	defaultHTTPPort = "38080"
-	defaultDataDir  = "data"
-	httpsAddr       = ":8443"
-	certFile        = "server.crt"
-	keyFile         = "server.key"
-	statsdAddr      = "localhost:8125"
+	certFile   = "server.crt"
+	keyFile    = "server.key"
+	statsdAddr = "localhost:8125"
 )
 
 func main() {
+	cfg, err := loadConfig(os.Getenv)
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+
 	statsdClient, err := statsd.New(statsdAddr)
 	if err != nil {
 		log.Printf("statsd disabled: %v", err)
 	}
 
-	app := server.New(server.Options{
-		Statsd:      statsdClient,
-		AccessLog:   os.Stdout,
-		BuildInfo:   buildinfo.Data,
-		Development: os.Getenv("APP_ENV") == "development",
-	})
-
-	// SINK_DATA_DIR holds the persisted latency/failure configs. Unset uses
-	// ./data; set it to an empty string to disable persistence.
-	dataDir, set := os.LookupEnv("SINK_DATA_DIR")
-	if !set {
-		dataDir = defaultDataDir
+	opts := server.Options{
+		Statsd:        statsdClient,
+		AccessLog:     os.Stdout,
+		AccessLogJSON: cfg.LogJSON,
+		BuildInfo:     buildinfo.Data,
+		Development:   cfg.Development,
+		MaxDelay:      cfg.MaxDelay,
+		MaxBodyBytes:  cfg.MaxBodyBytes,
+		NoRateLimit:   cfg.RateLimit == 0,
 	}
-	if dataDir != "" {
-		if err := app.EnablePersistence(dataDir); err != nil {
-			log.Fatalf("persistence: %v", err)
+	if cfg.RateLimit > 0 {
+		opts.RateLimiter = newRateLimiter(cfg.RateLimit)
+	}
+	app := server.New(opts)
+
+	if cfg.RulesFile != "" {
+		rules, err := server.LoadRulesFile(cfg.RulesFile)
+		if err != nil {
+			log.Fatalf("rules: %v", err)
 		}
-		log.Printf("persisting latency/failure configs in %s", dataDir)
-	} else {
-		log.Printf("persistence disabled (SINK_DATA_DIR is empty)")
+		if err := app.SetRules(rules); err != nil {
+			log.Fatalf("rules: %s: %v", cfg.RulesFile, err)
+		}
+		log.Printf("loaded %d rule(s) from %s", len(rules), cfg.RulesFile)
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultHTTPPort
-	}
-
-	servers := []*http.Server{newServer(":"+port, app)}
+	servers := []*http.Server{newServer(":"+cfg.Port, app)}
 	var tlsServer *http.Server
 	if fileExists(certFile) && fileExists(keyFile) {
-		tlsServer = newServer(httpsAddr, app)
+		tlsServer = newServer(":"+cfg.HTTPSPort, app)
 		servers = append(servers, tlsServer)
 	} else {
 		log.Printf("%s/%s not found; HTTPS disabled (run ./generate-ssl-certs.sh)", certFile, keyFile)
@@ -107,7 +109,6 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}
 	wg.Wait()
-	_ = app.Close() // flush persisted configs
 	_ = statsdClient.Close()
 	if failed {
 		os.Exit(1)

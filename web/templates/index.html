@@ -34,52 +34,22 @@
   </table>
   <p class="stats-updated" id="stats-updated">updating...</p>
 </div>
-<div id="latency-section">
-  <h3>Latency Simulation</h3>
-  <p class="section-info">Configure a path under /sink/ and a jitter value in ms. Requests to the exact path get a random delay between 0 and that value before responding. Config is shared by everyone using this instance, so pick a path of your own. It expires after 1 hour. To delay a single request instead, add <code>?sinkDelay=250ms</code> (or a range like <code>50ms-300ms</code>, max 10s) to the URL, or send an <code>X-Sink-Delay</code> header.</p>
-  <form id="latency-form">
-    <input id="latency-path" type="text" placeholder="/sink/my-scenario" required>
-    <input id="latency-jitter" type="number" placeholder="jitter ms" min="0" required>
-    <button type="submit">Add</button>
-  </form>
-  <span class="form-error" id="latency-form-error"></span>
-  <table id="sink-latency">
-    <thead><tr><th>Path</th><th>Jitter (ms)</th><th></th></tr></thead>
-    <tbody id="latency-body"></tbody>
+<div id="injection-section">
+  <h3>Latency and Failure Injection</h3>
+  <p class="section-info">Make a single request slow or failing by adding parameters to its URL (or sending the matching headers). Nothing is stored on the server, so everyone sharing this instance can inject independently.</p>
+  <table id="sink-injection-help">
+    <thead><tr><th>Query parameter</th><th>Header</th><th>Example</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>sinkDelay</code></td><td><code>X-Sink-Delay</code></td><td><code>?sinkDelay=250ms</code></td><td>Fixed delay. Also <code>1.5s</code>, a number of ms, or a random range like <code>50ms-300ms</code>. Max {{.MaxDelay}}.</td></tr>
+      <tr><td><code>sinkStatus</code></td><td><code>X-Sink-Status</code></td><td><code>?sinkStatus=503</code></td><td>Respond with this status (400-599) instead of 200.</td></tr>
+      <tr><td colspan="2">Probability lists</td><td><code>?sinkStatus=503:10,429:5</code><br><code>?sinkDelay=50ms:90,2s:10</code></td><td>Each <code>value:percent</code> is the chance that value is used (they must add up to at most 100); the rest of the requests are left alone.</td></tr>
+    </tbody>
   </table>
-</div>
-<div id="failure-section">
-  <h3>Failure Injection</h3>
-  <p class="section-info">Configure a path under /sink/, an error rate (0-1), and a status code. That fraction of requests to the exact path will receive the status code instead of the normal 200 response; the rest respond normally. Config is shared by everyone using this instance, so pick a path of your own. It expires after 1 hour. To fail a single request instead, add <code>?sinkStatus=503</code> (and optionally <code>&amp;sinkFailRate=0.3</code>) to the URL, or send <code>X-Sink-Status</code> / <code>X-Sink-Fail-Rate</code> headers.</p>
-  <form id="failure-form">
-    <input id="failure-path" type="text" placeholder="/sink/my-scenario" list="failure-path-list" required>
-    <datalist id="failure-path-list"></datalist>
-    <select id="failure-rate" required>
-      <option value="0.05">5%</option>
-      <option value="0.1">10%</option>
-      <option value="0.25">25%</option>
-      <option value="0.5" selected>50%</option>
-      <option value="0.75">75%</option>
-      <option value="1">100%</option>
-    </select>
-    <select id="failure-status" required>
-      <option value="400">400 Bad Request</option>
-      <option value="401">401 Unauthorized</option>
-      <option value="403">403 Forbidden</option>
-      <option value="404">404 Not Found</option>
-      <option value="408">408 Request Timeout</option>
-      <option value="429">429 Too Many Requests</option>
-      <option value="500" selected>500 Internal Server Error</option>
-      <option value="502">502 Bad Gateway</option>
-      <option value="503">503 Service Unavailable</option>
-      <option value="504">504 Gateway Timeout</option>
-    </select>
-    <button type="submit">Add</button>
-  </form>
-  <span class="form-error" id="failure-form-error"></span>
-  <table id="sink-failure">
-    <thead><tr><th>Path</th><th>Rate</th><th>Status code</th><th></th></tr></thead>
-    <tbody id="failure-body"></tbody>
+  <h4>Configured rules</h4>
+  <p class="section-info">Operators can also configure rules for exact paths in a rules file loaded at startup, for clients that can't change their URL or headers. They are read-only here, and a request's own parameters override them.</p>
+  <table id="sink-rules">
+    <thead><tr><th>Path</th><th>Delay</th><th>Status</th></tr></thead>
+    <tbody id="rules-body"></tbody>
   </table>
 </div>
 <div id="about-section">

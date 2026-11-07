@@ -50,6 +50,10 @@ ingress:
     cert-manager.io/issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # With more than one replica, pin each browser to one pod so the dashboard
+    # shows a consistent view instead of jumping between pods on every poll:
+    # nginx.ingress.kubernetes.io/affinity: "cookie"
+    # nginx.ingress.kubernetes.io/session-cookie-name: "http-sink"
   hosts:
     - host: http-sink.jecklgamis.com
       paths:
@@ -59,6 +63,22 @@ ingress:
     - secretName: http-sink
       hosts:
         - http-sink.jecklgamis.com
+
+# Static injection rules, loaded at startup from a ConfigMap on every replica.
+# The app keeps no other state, so replicas behave identically and can be
+# scaled freely. Changing the rules rolls the pods (via a checksum annotation).
+# Each rule matches one exact path; delay and status accept the same syntax as
+# the sinkDelay / sinkStatus request parameters, including probability lists.
+rules: []
+  # - path: /sink/orders
+  #   delay: 50ms-300ms
+  #   status: "503:10,429:5"
+
+# Extra environment variables for the container, e.g. MAX_DURATION, MAX_BODY_SIZE,
+# RATE_LIMIT (0 disables the per-replica limit) or LOG_FORMAT (text|json).
+extraEnv: []
+  # - name: LOG_FORMAT
+  #   value: json
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
