@@ -83,13 +83,4 @@ func wantStatus(t *testing.T, res response, want int) {
 	}
 }
 
-// createProject claims a unique project and returns its name and token.
-func createProject(t *testing.T, base string) (name, token string) {
-	t.Helper()
-	name = uniqueName("proj")
-	res := do(t, "POST", base+"/sink/projects", map[string]any{"name": name})
-	wantStatus(t, res, 201)
-	return name, res.JSON(t)["token"].(string)
-}
-
 func contains(s, sub string) bool { return strings.Contains(s, sub) }

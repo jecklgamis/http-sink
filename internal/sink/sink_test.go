@@ -115,30 +115,6 @@ func TestFailureStatusCodeFor(t *testing.T) {
 	}
 }
 
-func TestProjects(t *testing.T) {
-	p := NewProjects()
-	token, ok := p.Create("demo")
-	if !ok || len(token) != 48 {
-		t.Fatalf("create = %q,%v; want 48-char token", token, ok)
-	}
-	if _, ok := p.Create("demo"); ok {
-		t.Fatal("duplicate create succeeded")
-	}
-	if !p.Exists("demo") || p.Exists("nope") {
-		t.Fatal("Exists mismatch")
-	}
-	if !p.Verify("demo", token) || p.Verify("demo", "bad") || p.Verify("nope", token) {
-		t.Fatal("Verify mismatch")
-	}
-	if l := p.List(); len(l) != 1 || l[0].Name != "demo" {
-		t.Fatalf("list = %+v", l)
-	}
-	p.Remove("demo")
-	if p.Exists("demo") {
-		t.Fatal("project still exists after remove")
-	}
-}
-
 func TestStatsLatencyPercentiles(t *testing.T) {
 	now := time.Unix(10_000, 0)
 	s := NewStats()
@@ -220,5 +196,78 @@ func TestMetricsPrometheusOutput(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
+	}
+}
+
+func TestConfigExpiresAfterTTL(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := NewLatency()
+	l.store.now = func() time.Time { return now }
+
+	cfg, err := l.Set("/sink/a", 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := now.Add(ConfigTTL).UnixMilli(); cfg.ExpiresAt != want {
+		t.Fatalf("expiresAt = %d, want %d", cfg.ExpiresAt, want)
+	}
+
+	now = now.Add(ConfigTTL - time.Second)
+	if len(l.List()) != 1 || l.store.items["/sink/a"].val != 50 {
+		t.Fatal("config should still be live just before expiry")
+	}
+
+	now = now.Add(2 * time.Second)
+	if len(l.List()) != 0 {
+		t.Fatal("config should be gone after TTL")
+	}
+	if d := l.DelayFor("/sink/a"); d != 0 {
+		t.Fatalf("expired config still delaying: %v", d)
+	}
+}
+
+func TestSetRefreshesTTL(t *testing.T) {
+	now := time.Unix(1000, 0)
+	f := NewFailure()
+	f.store.now = func() time.Time { return now }
+
+	f.Set("/sink/a", 1, 500)
+	now = now.Add(ConfigTTL - time.Minute)
+	f.Set("/sink/a", 1, 503) // refresh + update
+	now = now.Add(ConfigTTL - time.Minute)
+	if got := f.StatusCodeFor("/sink/a"); got != 503 {
+		t.Fatalf("status = %d, want 503 (TTL should have been refreshed)", got)
+	}
+}
+
+func TestConfigCap(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := NewLatency()
+	l.store.now = func() time.Time { return now }
+
+	for i := 0; i < MaxConfigs; i++ {
+		if _, err := l.Set(fmt.Sprintf("/sink/p%d", i), 10); err != nil {
+			t.Fatalf("set %d: %v", i, err)
+		}
+	}
+	if _, err := l.Set("/sink/overflow", 10); err != ErrTooManyConfigs {
+		t.Fatalf("err = %v, want ErrTooManyConfigs", err)
+	}
+	// updating an existing path is still allowed at the cap
+	if _, err := l.Set("/sink/p0", 99); err != nil {
+		t.Fatalf("update at cap: %v", err)
+	}
+	// removing frees a slot
+	l.Remove("/sink/p1")
+	if _, err := l.Set("/sink/overflow", 10); err != nil {
+		t.Fatalf("set after remove: %v", err)
+	}
+	// expiry frees slots too
+	now = now.Add(ConfigTTL + time.Second)
+	if _, err := l.Set("/sink/after-expiry", 10); err != nil {
+		t.Fatalf("set after expiry: %v", err)
+	}
+	if n := len(l.List()); n != 1 {
+		t.Fatalf("live configs = %d, want 1", n)
 	}
 }

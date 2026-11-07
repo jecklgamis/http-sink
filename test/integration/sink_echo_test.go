@@ -89,10 +89,9 @@ func TestSinkTrafficAppearsInStats(t *testing.T) {
 
 func TestInjectedFailure(t *testing.T) {
 	base := newApp(t)
-	name, token := createProject(t, base)
-	path := "/sink/" + name + "/boom"
+	path := "/sink/" + uniqueName("boom")
 	wantStatus(t, do(t, "POST", base+"/sink/config/failure",
-		map[string]any{"path": path, "rate": 1, "statusCode": 503}, withHeader("X-Sink-Token", token)), 201)
+		map[string]any{"path": path, "rate": 1, "statusCode": 503}), 201)
 
 	res := do(t, "GET", base+path, nil)
 	wantStatus(t, res, 503)
@@ -103,10 +102,9 @@ func TestInjectedFailure(t *testing.T) {
 
 func TestInjectedLatency(t *testing.T) {
 	base := newApp(t)
-	name, token := createProject(t, base)
-	path := "/sink/" + name + "/slow"
+	path := "/sink/" + uniqueName("slow")
 	wantStatus(t, do(t, "POST", base+"/sink/config/latency",
-		map[string]any{"path": path, "jitterMs": 5}, withHeader("X-Sink-Token", token)), 201)
+		map[string]any{"path": path, "jitterMs": 5}), 201)
 
 	start := time.Now()
 	wantStatus(t, do(t, "GET", base+path, nil), 200)

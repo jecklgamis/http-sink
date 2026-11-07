@@ -40,15 +40,14 @@ type Options struct {
 
 // Server is the http-sink application; it implements http.Handler.
 type Server struct {
-	opts     Options
-	stats    *sink.Stats
-	metrics  *sink.Metrics
-	latency  *sink.Latency
-	failure  *sink.Failure
-	projects *sink.Projects
-	tmpl     *template.Template
-	static   fs.FS
-	handler  http.Handler
+	opts    Options
+	stats   *sink.Stats
+	metrics *sink.Metrics
+	latency *sink.Latency
+	failure *sink.Failure
+	tmpl    *template.Template
+	static  fs.FS
+	handler http.Handler
 }
 
 // New builds a Server with fresh in-memory state.
@@ -57,14 +56,13 @@ func New(opts Options) *Server {
 		opts.RateLimiter = ratelimit.New(DefaultRateLimit, time.Second)
 	}
 	s := &Server{
-		opts:     opts,
-		stats:    sink.NewStats(),
-		metrics:  sink.NewMetrics(),
-		latency:  sink.NewLatency(),
-		failure:  sink.NewFailure(),
-		projects: sink.NewProjects(),
-		tmpl:     template.Must(template.ParseFS(web.Templates, "templates/*.html")),
-		static:   web.Public(),
+		opts:    opts,
+		stats:   sink.NewStats(),
+		metrics: sink.NewMetrics(),
+		latency: sink.NewLatency(),
+		failure: sink.NewFailure(),
+		tmpl:    template.Must(template.ParseFS(web.Templates, "templates/*.html")),
+		static:  web.Public(),
 	}
 	// Outermost first: this order mirrors the request flow.
 	s.handler = chain(http.HandlerFunc(s.route),

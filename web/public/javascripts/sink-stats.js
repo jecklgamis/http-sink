@@ -221,36 +221,6 @@
         });
     }
 
-    function renderProjectsList(projects) {
-        var tbody = document.getElementById('projects-body');
-        tbody.innerHTML = '';
-        if (projects.length === 0) {
-            var emptyRow = document.createElement('tr');
-            var emptyCell = document.createElement('td');
-            emptyCell.colSpan = 2;
-            emptyCell.textContent = 'no projects yet';
-            emptyRow.appendChild(emptyCell);
-            tbody.appendChild(emptyRow);
-            return;
-        }
-        projects.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).forEach(function (p) {
-            var tr = document.createElement('tr');
-            [p.name, new Date(p.createdAt).toLocaleString()].forEach(function (value) {
-                var td = document.createElement('td');
-                td.textContent = value;
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
-    }
-
-    function updateProjectsList() {
-        fetch('/sink/projects')
-            .then(function (res) { return res.json(); })
-            .then(renderProjectsList)
-            .catch(function () {});
-    }
-
     function update() {
         fetch('/sink/stats')
             .then(function (res) { return res.json(); })
@@ -269,7 +239,6 @@
             .catch(function () {
                 document.getElementById('stats-updated').textContent = 'stats unavailable';
             });
-        updateProjectsList();
     }
 
     document.getElementById('clear-recent').addEventListener('click', function () {
@@ -283,179 +252,6 @@
         recentFrozen = !recentFrozen;
         freezeButton.textContent = recentFrozen ? 'Unfreeze' : 'Freeze';
     });
-
-    var PROJECT_STORAGE_KEY = 'sinkProject';
-
-    function getProject() {
-        try {
-            var raw = localStorage.getItem(PROJECT_STORAGE_KEY);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function setProject(project) {
-        try {
-            localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
-        } catch (e) {
-            // ignore (private browsing, storage disabled, etc.)
-        }
-    }
-
-    function clearProject() {
-        try {
-            localStorage.removeItem(PROJECT_STORAGE_KEY);
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    function getProjectToken() {
-        var project = getProject();
-        return project ? project.token : null;
-    }
-
-    function renderProjectUI() {
-        var project = getProject();
-        var activeEl = document.getElementById('project-active');
-        if (!project) {
-            activeEl.hidden = true;
-            return;
-        }
-        document.getElementById('project-active-name').textContent = project.name;
-        var prefix = '/sink/' + project.name + '/';
-        document.getElementById('project-path-prefix').textContent = prefix;
-        activeEl.hidden = false;
-
-        var latencyPathInput = document.getElementById('latency-path');
-        var failurePathInput = document.getElementById('failure-path');
-        if (!latencyPathInput.value) latencyPathInput.value = prefix;
-        if (!failurePathInput.value) failurePathInput.value = prefix;
-    }
-
-    document.getElementById('project-form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        var errorEl = document.getElementById('project-form-error');
-        errorEl.textContent = '';
-        var name = document.getElementById('project-name').value.trim();
-        fetch('/sink/projects', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name: name}),
-        }).then(function (res) {
-            return res.json().then(function (body) {
-                return {ok: res.ok, body: body};
-            });
-        }).then(function (result) {
-            if (result.ok) {
-                setProject({name: result.body.name, token: result.body.token});
-                document.getElementById('project-form').reset();
-                renderProjectUI();
-                document.getElementById('project-token').value = result.body.token;
-                document.getElementById('project-token-reveal').hidden = false;
-                updateProjectsList();
-            } else {
-                errorEl.textContent = result.body.error || 'request failed';
-            }
-        });
-    });
-
-    document.getElementById('project-restore-form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        var errorEl = document.getElementById('project-restore-form-error');
-        errorEl.textContent = '';
-        var name = document.getElementById('project-restore-name').value.trim();
-        var token = document.getElementById('project-restore-token').value.trim();
-        fetch('/sink/projects')
-            .then(function (res) { return res.json(); })
-            .then(function (projectList) {
-                if (!projectList.some(function (p) { return p.name === name; })) {
-                    errorEl.textContent = "project '" + name + "' does not exist on this server";
-                    return;
-                }
-                setProject({name: name, token: token});
-                document.getElementById('project-restore-form').reset();
-                renderProjectUI();
-            })
-            .catch(function () {
-                errorEl.textContent = 'could not reach the server to verify the project name';
-            });
-    });
-
-    document.getElementById('project-delete-form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        var errorEl = document.getElementById('project-delete-form-error');
-        errorEl.textContent = '';
-        var name = document.getElementById('project-delete-name').value.trim();
-        var token = document.getElementById('project-delete-token').value.trim();
-        fetch('/sink/projects/' + encodeURIComponent(name), {
-            method: 'DELETE',
-            headers: {'X-Sink-Token': token},
-        }).then(function (res) {
-            if (res.ok) {
-                document.getElementById('project-delete-form').reset();
-                var active = getProject();
-                if (active && active.name === name) {
-                    forgetProjectLocally();
-                } else {
-                    updateProjectsList();
-                }
-                return;
-            }
-            return res.json().then(function (body) {
-                errorEl.textContent = body.error || 'request failed';
-            }).catch(function () {
-                errorEl.textContent = 'request failed';
-            });
-        }).catch(function () {
-            errorEl.textContent = 'could not reach the server';
-        });
-    });
-
-    function forgetProjectLocally() {
-        clearProject();
-        document.getElementById('project-token-reveal').hidden = true;
-        document.getElementById('project-token').value = '';
-        renderProjectUI();
-        updateProjectsList();
-    }
-
-    document.getElementById('project-forget').addEventListener('click', function () {
-        var project = getProject();
-        var errorEl = document.getElementById('project-form-error');
-        if (!project) {
-            forgetProjectLocally();
-            return;
-        }
-        fetch('/sink/projects/' + encodeURIComponent(project.name), {
-            method: 'DELETE',
-            headers: {'X-Sink-Token': project.token},
-        }).then(function (res) {
-            if (res.ok || res.status === 404) {
-                if (errorEl) errorEl.textContent = '';
-                return;
-            }
-            return res.json().then(function (body) {
-                if (errorEl) {
-                    errorEl.textContent = 'Forgot locally, but could not release the name on the server: '
-                        + (body.error || res.status);
-                }
-            });
-        }).catch(function () {
-            if (errorEl) errorEl.textContent = 'Forgot locally, but could not reach the server to release the name.';
-        }).then(forgetProjectLocally);
-    });
-
-    document.getElementById('project-token-copy').addEventListener('click', function () {
-        var tokenInput = document.getElementById('project-token');
-        tokenInput.select();
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(tokenInput.value).catch(function () {});
-        }
-    });
-
-    renderProjectUI();
 
     function wireConfigSection(opts) {
         function render(configs) {
@@ -481,10 +277,7 @@
                 var removeButton = document.createElement('button');
                 removeButton.textContent = 'Remove';
                 removeButton.addEventListener('click', function () {
-                    var headers = {};
-                    var token = getProjectToken();
-                    if (token) headers['X-Sink-Token'] = token;
-                    fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE', headers: headers})
+                    fetch(opts.endpoint + '?path=' + encodeURIComponent(c.path), {method: 'DELETE'})
                         .then(refresh);
                 });
                 actionTd.appendChild(removeButton);
@@ -508,12 +301,9 @@
                 var raw = document.getElementById(f.id).value;
                 payload[f.key] = f.parse ? f.parse(raw) : raw.trim();
             });
-            var headers = {'Content-Type': 'application/json'};
-            var token = getProjectToken();
-            if (token) headers['X-Sink-Token'] = token;
             fetch(opts.endpoint, {
                 method: 'POST',
-                headers: headers,
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload),
             }).then(function (res) {
                 if (res.ok) {
