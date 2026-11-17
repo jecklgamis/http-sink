@@ -1,0 +1,31 @@
+# Open-model (constant-arrival-rate) load test: 2KB JSON POST to /sink.
+# Iteration starts are paced strictly to `rate`, independent of latency, so RPS
+# stays constant; concurrency grows up to max_workers to sustain it. If even
+# max_workers can't, the report sets rate_saturated / peak_concurrency.
+#
+# Run from the repo root (body path is relative to the working directory):
+#   resonate run perf-tests/sink-2k-open.yaml
+# Edit `rate` to probe a different level (the limit measured on an 8-core box
+# was ~23k req/s, load generator on the same host).
+protocol: http
+
+load:
+  duration: 30s
+  rate: 5000          # constant requests/sec
+  max_workers: 500    # in-flight ceiling; presence of this makes it open model
+
+http:
+  timeout: 5s
+  max_idle_conns: 500 # keep >= max_workers so connections stay warm
+  targets:
+    - method: POST
+      url: http://localhost:38080/sink/load
+      headers:
+        Content-Type: application/json
+      raw_body_file: perf-tests/body-2k.json   # exactly 2048 bytes, sent as-is
+
+assertions:
+  - metric: success_rate
+    min: "0.999"
+  - metric: latency_p99
+    max: 50ms

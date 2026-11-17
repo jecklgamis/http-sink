@@ -1,0 +1,38 @@
+# Capacity test: open-model (constant-arrival-rate) staircase of 2KB JSON POSTs
+# to /sink. Each level ramps from the previous rate over 10s, then holds for
+# 20s, so the arrival rate is controlled at every moment and concurrency is free
+# to grow (up to max_workers). Capacity is the highest level that still holds
+# its target rate with low latency and no errors; past it the report shows
+# rate_saturated / rising latency / failures in the time series.
+#
+# Run from the repo root (body path is relative to the working directory):
+#   resonate run perf-tests/sink-2k-capacity.yaml --json-report capacity.json
+# Run the load generator on a separate host for a true server ceiling; on the
+# same 8-core box the knee was measured at roughly 23k req/s.
+protocol: http
+
+load:
+  max_workers: 1000   # in-flight ceiling for the open model
+  stages:
+    - { duration: 10s, workers: 100, rate: 5000 }    # ramp 0 -> 5k
+    - { duration: 20s, workers: 100, rate: 5000 }    # hold
+    - { duration: 10s, workers: 100, rate: 10000 }
+    - { duration: 20s, workers: 100, rate: 10000 }
+    - { duration: 10s, workers: 100, rate: 15000 }
+    - { duration: 20s, workers: 100, rate: 15000 }
+    - { duration: 10s, workers: 100, rate: 20000 }
+    - { duration: 20s, workers: 100, rate: 20000 }
+    - { duration: 10s, workers: 100, rate: 25000 }
+    - { duration: 20s, workers: 100, rate: 25000 }
+    - { duration: 10s, workers: 100, rate: 30000 }
+    - { duration: 20s, workers: 100, rate: 30000 }
+
+http:
+  timeout: 5s
+  max_idle_conns: 1000   # keep >= max_workers so connections stay warm
+  targets:
+    - method: POST
+      url: http://localhost:38080/sink/load
+      headers:
+        Content-Type: application/json
+      raw_body_file: perf-tests/body-2k.json   # exactly 2048 bytes, sent as-is
